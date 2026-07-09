@@ -7,6 +7,7 @@ import { Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth-context';
 import { notify } from '../lib/notify';
+import { COLORS } from '../lib/theme';
 
 export default function InviteBanner() {
   const { partner, inviteCode } = useAuth();
@@ -26,7 +27,7 @@ export default function InviteBanner() {
 
   return (
     <View style={styles.banner}>
-      <Ionicons name="heart-outline" size={20} color="#E0526E" />
+      <Ionicons name="heart-outline" size={20} color={COLORS.primary} />
       <View style={styles.texts}>
         <Text style={styles.title}>Invitez votre partenaire</Text>
         <Text style={styles.subtitle}>Partagez ce code pour lier vos comptes :</Text>
@@ -47,7 +48,7 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: '#FFF',
     borderWidth: 1,
-    borderColor: '#F3C6CF',
+    borderColor: COLORS.primaryBorder,
     borderRadius: 12,
     padding: 14,
     marginHorizontal: 16,
@@ -56,12 +57,12 @@ const styles = StyleSheet.create({
   texts: { flex: 1 },
   title: { fontSize: 14, fontWeight: '700', color: '#2C3E50' },
   subtitle: { fontSize: 12, color: '#7F8C8D' },
-  code: { fontSize: 20, fontWeight: '700', letterSpacing: 3, color: '#E0526E', marginTop: 2 },
+  code: { fontSize: 20, fontWeight: '700', letterSpacing: 3, color: COLORS.primary, marginTop: 2 },
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#E0526E',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,

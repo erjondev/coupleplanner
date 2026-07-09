@@ -19,6 +19,7 @@ import { getCalendar } from '../../lib/api';
 import { CalendarEvent, Task } from '../../types';
 import EditTaskModal from '../../components/EditTaskModal';
 import CreateTaskModal from '../../components/CreateTaskModal';
+import { COLORS as PALETTE } from '../../lib/theme';
 
 const CONFLICT_COLOR = '#C0392B';
 
@@ -45,7 +46,7 @@ LocaleConfig.locales.fr = {
 LocaleConfig.defaultLocale = 'fr';
 
 const COLORS: Record<CalendarEvent['visibility'], string> = {
-  mine: '#E0526E',
+  mine: PALETTE.primary,
   ours: '#27AE60',
   partner_busy: '#95A5A6',
 };
@@ -124,7 +125,7 @@ export default function AgendaScreen() {
       if (!marks[key]) marks[key] = { dots: [] };
       marks[key].dots.push({ key: 'conflict', color: CONFLICT_COLOR });
     }
-    marks[selected] = { ...(marks[selected] || {}), selected: true, selectedColor: '#E0526E' };
+    marks[selected] = { ...(marks[selected] || {}), selected: true, selectedColor: PALETTE.primary };
     return marks;
   }, [events, selected, conflictDays]);
 
@@ -166,9 +167,9 @@ export default function AgendaScreen() {
         onDayPress={(d) => setSelected(d.dateString)}
         onMonthChange={(d) => setMonth(d.dateString.slice(0, 7))}
         theme={{
-          todayTextColor: '#E0526E',
-          arrowColor: '#E0526E',
-          selectedDayBackgroundColor: '#E0526E',
+          todayTextColor: PALETTE.primary,
+          arrowColor: PALETTE.primary,
+          selectedDayBackgroundColor: PALETTE.primary,
         }}
       />
 
@@ -182,7 +183,7 @@ export default function AgendaScreen() {
         ))}
       </View>
 
-      {loading && <ActivityIndicator color="#E0526E" style={{ marginTop: 8 }} />}
+      {loading && <ActivityIndicator color={PALETTE.primary} style={{ marginTop: 8 }} />}
 
       <ScrollView style={styles.dayList} contentContainerStyle={styles.dayListContent}>
         {conflictDays.has(selected) && (
@@ -239,7 +240,7 @@ export default function AgendaScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FDF2F4' },
+  container: { flex: 1, backgroundColor: PALETTE.primaryLight },
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#E0526E',
+    backgroundColor: PALETTE.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',

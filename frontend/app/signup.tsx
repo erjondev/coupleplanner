@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../lib/auth-context';
+import { COLORS } from '../lib/theme';
 
 /**
  * Inscription. Deux parcours :
@@ -130,7 +131,7 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FDF2F4' },
+  container: { flex: 1, backgroundColor: COLORS.primaryLight },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
   card: {
     backgroundColor: '#fff',
@@ -158,12 +159,12 @@ const styles = StyleSheet.create({
   },
   switchLabel: { fontSize: 15, color: '#2C3E50' },
   button: {
-    backgroundColor: '#E0526E',
+    backgroundColor: COLORS.primary,
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
   },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   error: { color: '#C0392B', textAlign: 'center' },
-  link: { textAlign: 'center', color: '#E0526E', fontWeight: '600', marginTop: 4 },
+  link: { textAlign: 'center', color: COLORS.primary, fontWeight: '600', marginTop: 4 },
 });

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../lib/auth-context';
+import { COLORS } from '../lib/theme';
 
 /** Écran de connexion (comptes de démo pré-remplis, cf. seed backend). */
 export default function LoginScreen() {
@@ -80,7 +81,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', backgroundColor: '#FDF2F4', padding: 24 },
+  container: { flex: 1, justifyContent: 'center', backgroundColor: COLORS.primaryLight, padding: 24 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -100,13 +101,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   button: {
-    backgroundColor: '#E0526E',
+    backgroundColor: COLORS.primary,
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
   },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   error: { color: '#C0392B', textAlign: 'center' },
-  link: { textAlign: 'center', color: '#E0526E', fontWeight: '600', marginTop: 4 },
+  link: { textAlign: 'center', color: COLORS.primary, fontWeight: '600', marginTop: 4 },
   hint: { textAlign: 'center', color: '#AAA', fontSize: 12, marginTop: 4 },
 });

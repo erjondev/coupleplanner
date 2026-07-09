@@ -2,6 +2,7 @@ import { Redirect, Tabs, useRouter } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../lib/auth-context';
+import { COLORS } from '../../lib/theme';
 
 /**
  * Navigation principale : les 3 espaces du couple.
@@ -25,12 +26,12 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#E0526E',
-        headerStyle: { backgroundColor: '#FDF2F4' },
+        tabBarActiveTintColor: COLORS.primary,
+        headerStyle: { backgroundColor: COLORS.primaryLight },
         headerTitleStyle: { fontWeight: '700' },
         headerRight: () => (
           <TouchableOpacity onPress={handleSignOut} style={{ marginRight: 16 }}>
-            <Ionicons name="log-out-outline" size={24} color="#E0526E" />
+            <Ionicons name="log-out-outline" size={24} color={COLORS.primary} />
           </TouchableOpacity>
         ),
       }}

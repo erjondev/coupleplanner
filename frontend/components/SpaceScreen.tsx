@@ -15,6 +15,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { deleteTask, getTasks, updateTaskStatus } from '../lib/api';
 import { confirmAction } from '../lib/notify';
+import { COLORS } from '../lib/theme';
 import { Space, Task } from '../types';
 import TaskCard, { nextStatus } from './TaskCard';
 import VoiceModal from './VoiceModal';
@@ -129,7 +130,7 @@ export default function SpaceScreen({ space, emptyLabel }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FDF2F4' },
+  container: { flex: 1, backgroundColor: COLORS.primaryLight },
   list: { padding: 16, paddingBottom: 96 },
   empty: { textAlign: 'center', color: '#95A5A6', marginTop: 48, paddingHorizontal: 24 },
   error: { color: '#C0392B', textAlign: 'center', padding: 8 },
@@ -140,7 +141,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#E0526E',
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',

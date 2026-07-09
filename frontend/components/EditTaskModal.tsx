@@ -18,6 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { updateTask } from '../lib/api';
 import { notify } from '../lib/notify';
+import { COLORS } from '../lib/theme';
 import { Task, TaskStatus, UpdateTaskPayload } from '../types';
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
@@ -254,7 +255,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5E5',
     alignItems: 'center',
   },
-  segmentActive: { backgroundColor: '#E0526E', borderColor: '#E0526E' },
+  segmentActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   segmentText: { fontSize: 13, color: '#2C3E50' },
   segmentTextActive: { color: '#fff', fontWeight: '600' },
   switchRow: {
@@ -275,7 +276,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   primaryBtn: {
     flex: 1,
-    backgroundColor: '#E0526E',
+    backgroundColor: COLORS.primary,
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',

@@ -21,6 +21,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { createTask, voiceAnalyse } from '../lib/api';
 import { notify } from '../lib/notify';
+import { COLORS } from '../lib/theme';
 import { useSpeechRecognition } from '../lib/useSpeechRecognition';
 import { CreateTaskResponse } from '../types';
 
@@ -307,7 +308,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5E5',
     alignItems: 'center',
   },
-  segmentActive: { backgroundColor: '#E0526E', borderColor: '#E0526E' },
+  segmentActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   segmentText: { fontSize: 13, color: '#2C3E50' },
   segmentTextActive: { color: '#fff', fontWeight: '600' },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
@@ -320,7 +321,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   primaryBtn: {
     flex: 1,
-    backgroundColor: '#E0526E',
+    backgroundColor: COLORS.primary,
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
