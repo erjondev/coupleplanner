@@ -1,0 +1,9 @@
+# Dossiers natifs régénérables (npx expo prebuild)
+frontend/ios/
+frontend/android/
+
+# Dépendances et builds (déjà couverts par les .gitignore de chaque package,
+# ceux-ci sont redondants mais explicites pour un dépôt racine)
+node_modules/
+dist/
+.expo/

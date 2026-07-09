@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "CouplePlanner",
+    "slug": "coupleplanner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "coupleplanner",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Autoriser CouplePlanner à reconnaître ce que vous dictez.",
+        "NSMicrophoneUsageDescription": "Autoriser CouplePlanner à utiliser le micro pour la dictée vocale."
+      },
+      "bundleIdentifier": "com.coupleplanner.app"
+    },
+    "android": {
+      "package": "com.coupleplanner.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Autoriser CouplePlanner à utiliser le micro pour la dictée vocale.",
+          "speechRecognitionPermission": "Autoriser CouplePlanner à reconnaître ce que vous dictez.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ],
+      "expo-status-bar",
+      "@react-native-community/datetimepicker",
+      "expo-secure-store"
+    ]
+  }
+}

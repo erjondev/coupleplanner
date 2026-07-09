@@ -1,0 +1,107 @@
+// Schéma Prisma - CouplePlanner
+// Concept "3 espaces" :
+//   - Mon Espace   -> Environment PRIVATE lié à un user
+//   - Notre Espace -> Environment SHARED du couple (user_id = null)
+//   - Son Espace   -> vue filtrée des tâches SHARED assignées au partenaire
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EnvironmentType {
+  PRIVATE
+  SHARED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum DeviceType {
+  IOS
+  ANDROID
+  WEB
+}
+
+model Couple {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  // Code court partagé au partenaire pour rejoindre le couple.
+  // Nullable pour compat migration ; généré à la création via signup.
+  inviteCode String? @unique @map("invite_code")
+
+  users        User[]
+  environments Environment[]
+
+  @@map("couples")
+}
+
+model User {
+  id           String  @id @default(uuid())
+  email        String  @unique
+  passwordHash String  @map("password_hash")
+  name         String
+  coupleId     String? @map("couple_id")
+
+  couple             Couple?             @relation(fields: [coupleId], references: [id])
+  environments       Environment[]
+  createdTasks       Task[]              @relation("TaskCreatedBy")
+  assignedTasks      Task[]              @relation("TaskAssignedTo")
+  notificationTokens NotificationToken[]
+
+  @@map("users")
+}
+
+model Environment {
+  id       String          @id @default(uuid())
+  coupleId String          @map("couple_id")
+  // null => espace commun du couple (SHARED)
+  userId   String?         @map("user_id")
+  type     EnvironmentType
+
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+  tasks  Task[]
+
+  @@map("environments")
+}
+
+model Task {
+  id            String     @id @default(uuid())
+  environmentId String     @map("environment_id")
+  title         String
+  description   String?
+  status        TaskStatus @default(TODO)
+  startDatetime DateTime?  @map("start_datetime")
+  endDatetime   DateTime?  @map("end_datetime")
+  isAllDay      Boolean    @default(false) @map("is_all_day")
+  createdBy     String     @map("created_by")
+  assignedTo    String?    @map("assigned_to")
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  environment Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  creator     User        @relation("TaskCreatedBy", fields: [createdBy], references: [id])
+  assignee    User?       @relation("TaskAssignedTo", fields: [assignedTo], references: [id])
+
+  @@index([environmentId, startDatetime])
+  @@map("tasks")
+}
+
+model NotificationToken {
+  id         String     @id @default(uuid())
+  userId     String     @map("user_id")
+  token      String
+  deviceType DeviceType @map("device_type")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@map("notification_tokens")
+}
