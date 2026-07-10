@@ -6,7 +6,7 @@ Un seul sous-domaine disponible → **un seul domaine, deux chemins**, chacun é
 
 | Brique | Type de site alwaysdata | Domaine + chemin | Contenu déployé |
 |---|---|---|---|
-| Base de données | PostgreSQL (Databases) | `postgresql-<compte>.alwaysdata.net:5432` | — |
+| Base de données | PostgreSQL (Databases) | `postgresql-coupleplanner.alwaysdata.net:5432` | — |
 | Frontend (web) | Site **Fichiers statiques** | `coupleplanner.alwaysdata.net` / `/` | `frontend/dist/` (build local) |
 | Backend (API) | Site **Node.js** | `coupleplanner.alwaysdata.net` / `/api` | paquet backend précompilé (build local) |
 
@@ -34,14 +34,14 @@ alwaysdata permet plusieurs sites sur le même domaine avec des chemins différe
 
 **Panel > Databases > PostgreSQL > Add a database**
 - Nom : `coupleplanner`
-- Notez le serveur affiché : `postgresql-<compte>.alwaysdata.net`
+- Notez le serveur affiché : `postgresql-coupleplanner.alwaysdata.net`
 
 **Panel > Databases > PostgreSQL Users > Add a database user**
 - Créez un utilisateur (ex: `coupleplanner`), mot de passe, puis donnez-lui tous les droits sur la base `coupleplanner`.
 
 Construisez la chaîne de connexion :
 ```
-postgresql://<user>:<password>@postgresql-<compte>.alwaysdata.net:5432/coupleplanner?schema=public
+postgresql://coupleplanner:<password>@postgresql-coupleplanner.alwaysdata.net:5432/coupleplanner?schema=public
 ```
 Gardez-la de côté, elle sert de `DATABASE_URL`.
 
@@ -60,8 +60,8 @@ Produit `backend/coupleplanner-backend-deploy.tar.gz` (~36 Mo). Le script instal
 
 ### 2.2 Envoyer sur le serveur
 ```bash
-scp coupleplanner-backend-deploy.tar.gz <user>@ssh-<compte>.alwaysdata.net:~/
-ssh <user>@ssh-<compte>.alwaysdata.net
+scp coupleplanner-backend-deploy.tar.gz coupleplanner@ssh-coupleplanner.alwaysdata.net:~/
+ssh coupleplanner@ssh-coupleplanner.alwaysdata.net
 mkdir -p ~/coupleplanner-backend
 tar xzf coupleplanner-backend-deploy.tar.gz -C ~/coupleplanner-backend
 rm coupleplanner-backend-deploy.tar.gz
@@ -70,7 +70,7 @@ rm coupleplanner-backend-deploy.tar.gz
 ### 2.3 Migrations (en local, contre la base de production — pas besoin d'outillage sur le serveur)
 ```bash
 cd backend
-DATABASE_URL="postgresql://<user>:<password>@postgresql-<compte>.alwaysdata.net:5432/coupleplanner?schema=public" \
+DATABASE_URL="postgresql://coupleplanner:<password>@postgresql-coupleplanner.alwaysdata.net:5432/coupleplanner?schema=public" \
   yarn prisma:deploy   # = prisma migrate deploy — JAMAIS `prisma:migrate` (migrate dev) en production
 ```
 La base alwaysdata est joignable depuis l'extérieur via son nom d'hôte public, donc pas besoin d'être en SSH pour ça.
@@ -118,8 +118,8 @@ EXPO_PUBLIC_API_URL="" yarn build:web   # --clear est déjà dans le script, imp
 
 Cela génère `frontend/dist/` (fichiers statiques + `.htaccess` de fallback SPA). Envoi :
 ```bash
-ssh <user>@ssh-<compte>.alwaysdata.net "mkdir -p ~/coupleplanner-frontend"
-rsync -az --delete dist/ <user>@ssh-<compte>.alwaysdata.net:~/coupleplanner-frontend/
+ssh coupleplanner@ssh-coupleplanner.alwaysdata.net "mkdir -p ~/coupleplanner-frontend"
+rsync -az --delete dist/ coupleplanner@ssh-coupleplanner.alwaysdata.net:~/coupleplanner-frontend/
 ```
 
 **Panel > Web > Sites > Add a site**
@@ -143,15 +143,15 @@ Tout se refait en local, rien à installer sur le serveur :
 # Backend
 cd backend
 ./scripts/pack-for-deploy.sh
-scp coupleplanner-backend-deploy.tar.gz <user>@ssh-<compte>.alwaysdata.net:~/
-ssh <user>@ssh-<compte>.alwaysdata.net "rm -rf ~/coupleplanner-backend/* && tar xzf coupleplanner-backend-deploy.tar.gz -C ~/coupleplanner-backend && rm coupleplanner-backend-deploy.tar.gz"
+scp coupleplanner-backend-deploy.tar.gz coupleplanner@ssh-coupleplanner.alwaysdata.net:~/
+ssh coupleplanner@ssh-coupleplanner.alwaysdata.net "rm -rf ~/coupleplanner-backend/* && tar xzf coupleplanner-backend-deploy.tar.gz -C ~/coupleplanner-backend && rm coupleplanner-backend-deploy.tar.gz"
 # + relancez les migrations si le schéma a changé (voir 2.3)
 # + redémarrez le site Node.js depuis le panel (l'ancien process continue de tourner sinon)
 
 # Frontend
 cd ../frontend
 EXPO_PUBLIC_API_URL="" yarn build:web
-rsync -az --delete dist/ <user>@ssh-<compte>.alwaysdata.net:~/coupleplanner-frontend/
+rsync -az --delete dist/ coupleplanner@ssh-coupleplanner.alwaysdata.net:~/coupleplanner-frontend/
 ```
 
 ---
