@@ -1,6 +1,8 @@
 import React, { useRef } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import { StyleSheet, Text, View } from 'react-native';
+// Touchables importées de gesture-handler (et non de react-native) : requis pour que
+// les onPress soient bien reçus sur le web quand elles sont imbriquées dans un Swipeable.
+import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { Task, TaskStatus } from '../types';
 
@@ -10,11 +12,24 @@ const STATUS_META: Record<TaskStatus, { label: string; color: string }> = {
   DONE: { label: 'Terminé', color: '#27AE60' },
 };
 
+const STATUS_ICON: Record<TaskStatus, keyof typeof Ionicons.glyphMap> = {
+  TODO: 'ellipse-outline',
+  IN_PROGRESS: 'time-outline',
+  DONE: 'checkmark-circle-outline',
+};
+
 /** Cycle de statut au tap : TODO -> IN_PROGRESS -> DONE -> TODO. */
 export function nextStatus(status: TaskStatus): TaskStatus {
   if (status === 'TODO') return 'IN_PROGRESS';
   if (status === 'IN_PROGRESS') return 'DONE';
   return 'TODO';
+}
+
+/** Cycle inverse (utilisé par le bouton de statut précédent) : TODO -> DONE -> IN_PROGRESS -> TODO. */
+export function previousStatus(status: TaskStatus): TaskStatus {
+  if (status === 'IN_PROGRESS') return 'TODO';
+  if (status === 'DONE') return 'IN_PROGRESS';
+  return 'DONE';
 }
 
 function formatDate(task: Task): string | null {
@@ -33,32 +48,69 @@ function formatDate(task: Task): string | null {
 interface Props {
   task: Task;
   onToggleStatus: (task: Task) => void;
+  /** Fait passer la tâche au statut suivant (swipe vers la gauche). */
+  onNextStatus: (task: Task) => void;
+  /** Fait passer la tâche au statut précédent (swipe vers la gauche). */
+  onPreviousStatus: (task: Task) => void;
   /** Ouvre l'édition (swipe vers la gauche → Modifier). */
   onEdit: (task: Task) => void;
   /** Supprime la tâche (swipe vers la droite → Supprimer). */
   onDelete: (task: Task) => void;
 }
 
-export default function TaskCard({ task, onToggleStatus, onEdit, onDelete }: Props) {
+export default function TaskCard({
+  task,
+  onToggleStatus,
+  onNextStatus,
+  onPreviousStatus,
+  onEdit,
+  onDelete,
+}: Props) {
   const meta = STATUS_META[task.status];
   const date = formatDate(task);
   const swipeRef = useRef<Swipeable>(null);
 
-  // Swipe vers la gauche : action Modifier (à droite de la carte)
+  // Swipe vers la gauche (actions à droite de la carte) : changement de statut + Modifier.
+  // Les 2 boutons de statut affichent le libellé du statut CIBLE (pas "Précédent"/"Suivant").
+  const prev = previousStatus(task.status);
+  const next = nextStatus(task.status);
+
   const renderRightActions = () => (
-    <TouchableOpacity
-      style={styles.editAction}
-      onPress={() => {
-        swipeRef.current?.close();
-        onEdit(task);
-      }}
-    >
-      <Ionicons name="create-outline" size={22} color="#fff" />
-      <Text style={styles.actionText}>Modifier</Text>
-    </TouchableOpacity>
+    <>
+      <TouchableOpacity
+        style={[styles.statusAction, { backgroundColor: STATUS_META[prev].color }]}
+        onPress={() => {
+          swipeRef.current?.close();
+          onPreviousStatus(task);
+        }}
+      >
+        <Ionicons name={STATUS_ICON[prev]} size={22} color="#fff" />
+        <Text style={styles.actionText}>{STATUS_META[prev].label}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.statusAction, { backgroundColor: STATUS_META[next].color }]}
+        onPress={() => {
+          swipeRef.current?.close();
+          onNextStatus(task);
+        }}
+      >
+        <Ionicons name={STATUS_ICON[next]} size={22} color="#fff" />
+        <Text style={styles.actionText}>{STATUS_META[next].label}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.editAction}
+        onPress={() => {
+          swipeRef.current?.close();
+          onEdit(task);
+        }}
+      >
+        <Ionicons name="create-outline" size={22} color="#fff" />
+        <Text style={styles.actionText}>Modifier</Text>
+      </TouchableOpacity>
+    </>
   );
 
-  // Swipe vers la droite : action Supprimer (à gauche de la carte)
+  // Swipe vers la droite (action à gauche de la carte) : Supprimer.
   const renderLeftActions = () => (
     <TouchableOpacity
       style={styles.deleteAction}
@@ -129,6 +181,12 @@ const styles = StyleSheet.create({
   },
   deleteAction: {
     backgroundColor: '#C0392B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 72,
+    gap: 2,
+  },
+  statusAction: {
     justifyContent: 'center',
     alignItems: 'center',
     width: 72,

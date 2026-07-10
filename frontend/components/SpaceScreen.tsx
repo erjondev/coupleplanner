@@ -17,7 +17,7 @@ import { deleteTask, getTasks, updateTaskStatus } from '../lib/api';
 import { confirmAction } from '../lib/notify';
 import { COLORS } from '../lib/theme';
 import { Space, Task } from '../types';
-import TaskCard, { nextStatus } from './TaskCard';
+import TaskCard, { nextStatus, previousStatus } from './TaskCard';
 import VoiceModal from './VoiceModal';
 import EditTaskModal from './EditTaskModal';
 import InviteBanner from './InviteBanner';
@@ -53,8 +53,7 @@ export default function SpaceScreen({ space, emptyLabel }: Props) {
     }, [loadTasks])
   );
 
-  const handleToggleStatus = async (task: Task) => {
-    const status = nextStatus(task.status);
+  const applyStatus = async (task: Task, status: Task['status']) => {
     // Mise à jour optimiste pour une UI réactive
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status } : t)));
     try {
@@ -63,6 +62,10 @@ export default function SpaceScreen({ space, emptyLabel }: Props) {
       loadTasks(); // rollback en cas d'échec
     }
   };
+
+  const handleToggleStatus = (task: Task) => applyStatus(task, nextStatus(task.status));
+  const handleNextStatus = (task: Task) => applyStatus(task, nextStatus(task.status));
+  const handlePreviousStatus = (task: Task) => applyStatus(task, previousStatus(task.status));
 
   const handleDelete = async (task: Task) => {
     const ok = await confirmAction(
@@ -93,6 +96,8 @@ export default function SpaceScreen({ space, emptyLabel }: Props) {
           <TaskCard
             task={item}
             onToggleStatus={handleToggleStatus}
+            onNextStatus={handleNextStatus}
+            onPreviousStatus={handlePreviousStatus}
             onEdit={setEditing}
             onDelete={handleDelete}
           />
