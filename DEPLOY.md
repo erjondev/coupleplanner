@@ -1,16 +1,24 @@
 # Déploiement sur alwaysdata — coupleplanner.alwaysdata.net
 
+Le compte alwaysdata a un **quota disque limité**, insuffisant pour faire tourner `yarn install` sur place (React Native / Expo + Prisma, c'est lourd). La stratégie retenue : **tout se compile en local**, seuls les fichiers finaux (`dist/` compilé + dépendances de production) sont envoyés sur le serveur. Le serveur ne fait jamais tourner `yarn install`, `tsc` ni `prisma generate` — seulement `node dist/server.js`.
+
 Un seul sous-domaine disponible → **un seul domaine, deux chemins**, chacun étant un « site » alwaysdata distinct :
 
-| Brique | Type de site alwaysdata | Domaine + chemin |
-|---|---|---|
-| Base de données | PostgreSQL (Databases) | `postgresql-<compte>.alwaysdata.net:5432` |
-| Frontend (web) | Site **Fichiers statiques** | `coupleplanner.alwaysdata.net` / `/` |
-| Backend (API) | Site **Node.js** | `coupleplanner.alwaysdata.net` / `/api` |
+| Brique | Type de site alwaysdata | Domaine + chemin | Contenu déployé |
+|---|---|---|---|
+| Base de données | PostgreSQL (Databases) | `postgresql-<compte>.alwaysdata.net:5432` | — |
+| Frontend (web) | Site **Fichiers statiques** | `coupleplanner.alwaysdata.net` / `/` | `frontend/dist/` (build local) |
+| Backend (API) | Site **Node.js** | `coupleplanner.alwaysdata.net` / `/api` | paquet backend précompilé (build local) |
 
 alwaysdata permet plusieurs sites sur le même domaine avec des chemins différents (`example.com/` et `example.com/blog` peuvent être deux sites distincts) — c'est ce mécanisme qu'on utilise ici.
 
-> Le code a été préparé pour ce déploiement (commits précédents) : CORS restreignable via `CORS_ORIGIN`, écoute sur `PORT`/`IP`, migrations Prisma en mode production (`prisma migrate deploy`), export web Expo (`build:web --clear`) avec fallback SPA (`.htaccess`), et **routes API montées à la fois sur `/api/...` et sur `/...`** dans [app.ts](backend/src/app.ts) — je n'ai pas pu vérifier avec certitude si le proxy alwaysdata conserve ou retire le préfixe `/api` d'un chemin avant de le transmettre au process Node, donc le backend répond dans les deux cas plutôt que de parier dessus (vérifié en local : `curl /api/auth/login` et `curl /auth/login` répondent tous les deux 200).
+> Préparation du code (commits précédents), **tout vérifié en conditions réelles** (conteneur Debian 12 / OpenSSL 3.0.20 / x86_64, identique au serveur) :
+> - CORS restreignable via `CORS_ORIGIN`, écoute sur `PORT`/`IP` fournis par alwaysdata.
+> - Client Prisma généré pour `debian-openssl-3.0.x` en plus de la plateforme locale ([schema.prisma](backend/prisma/schema.prisma)) — sans ça, le binaire natif (macOS) ne fonctionnerait pas sur le serveur.
+> - Routes API montées à la fois sur `/api/...` et `/...` ([app.ts](backend/src/app.ts)) — le comportement exact du proxy alwaysdata sur le préfixe de chemin n'a pas pu être confirmé côté doc, donc le backend répond dans les deux cas.
+> - **`express-async-errors`** ajouté ([app.ts](backend/src/app.ts)) — bug trouvé en testant : sans ça, la moindre erreur async non catchée (ex: base de données injoignable un instant) faisait planter **tout le process**, pas juste la requête en cours. Reproduit puis corrigé, confirmé par test : le serveur renvoie maintenant une 500 propre et reste en vie.
+> - Export web Expo (`build:web --clear`) avec fallback SPA (`.htaccess`) — le `--clear` est nécessaire car le cache de Metro garde silencieusement l'ancienne valeur de `EXPO_PUBLIC_API_URL` sinon (vérifié).
+> - [backend/scripts/pack-for-deploy.sh](backend/scripts/pack-for-deploy.sh) : construit un paquet backend sans les dépendances de dev (~36 Mo compressé au lieu de 210+ Mo avec `node_modules` complet), testé de bout en bout.
 
 ---
 
@@ -18,10 +26,7 @@ alwaysdata permet plusieurs sites sur le même domaine avec des chemins différe
 
 - Accès SSH activé : **Panel alwaysdata > Remote access > SSH** → activer, définir un mot de passe ou une clé SSH.
   Doc : https://help.alwaysdata.com/en/web-hosting/remote-access/ssh/
-- **yarn** disponible sur le serveur : le repo utilise `yarn.lock` (pas `package-lock.json`), donc toutes les commandes ci-dessous utilisent `yarn`, pas `npm`, pour installer exactement les mêmes versions qu'en local. Vérifiez/installez-le une fois en SSH :
-  ```bash
-  yarn --version || npm install -g yarn   # pas besoin de root, tout est sandboxé par compte chez alwaysdata
-  ```
+- En local : `yarn`, `docker` (optionnel, pour vérifier avant d'envoyer), `rsync` (préinstallé sur macOS).
 
 ---
 
@@ -44,25 +49,38 @@ Doc : https://help.alwaysdata.com/en/web-hosting/databases/postgresql/
 
 ---
 
-## 2. Récupérer le code sur le serveur (SSH)
+## 2. Backend — build local + upload
 
+### 2.1 Construire le paquet (en local, depuis `backend/`)
 ```bash
+cd backend
+./scripts/pack-for-deploy.sh
+```
+Produit `backend/coupleplanner-backend-deploy.tar.gz` (~36 Mo). Le script installe les dépendances, génère le client Prisma (natif + `debian-openssl-3.0.x`), compile TypeScript, puis retire tout ce qui n'est utile qu'en développement (`typescript`, `ts-node`, `ts-node-dev`, `prisma` CLI, `@types/*`, le moteur Prisma natif macOS).
+
+### 2.2 Envoyer sur le serveur
+```bash
+scp coupleplanner-backend-deploy.tar.gz <user>@ssh-<compte>.alwaysdata.net:~/
 ssh <user>@ssh-<compte>.alwaysdata.net
-git clone <url-de-votre-repo> ~/coupleplanner
-cd ~/coupleplanner
+mkdir -p ~/coupleplanner-backend
+tar xzf coupleplanner-backend-deploy.tar.gz -C ~/coupleplanner-backend
+rm coupleplanner-backend-deploy.tar.gz
 ```
 
-Si le repo est privé, utilisez une clé de déploiement GitHub ou un token dans l'URL HTTPS.
+### 2.3 Migrations (en local, contre la base de production — pas besoin d'outillage sur le serveur)
+```bash
+cd backend
+DATABASE_URL="postgresql://<user>:<password>@postgresql-<compte>.alwaysdata.net:5432/coupleplanner?schema=public" \
+  yarn prisma:deploy   # = prisma migrate deploy — JAMAIS `prisma:migrate` (migrate dev) en production
+```
+La base alwaysdata est joignable depuis l'extérieur via son nom d'hôte public, donc pas besoin d'être en SSH pour ça.
 
----
-
-## 3. Backend — site Node.js sur `/api`
-
+### 2.4 Créer le site Node.js
 **Panel > Web > Sites > Add a site**
 - Type : **Node.js**
 - Domaine : `coupleplanner.alwaysdata.net`
 - Chemin : `/api`
-- Répertoire de travail : `~/coupleplanner/backend`
+- Répertoire de travail : `~/coupleplanner-backend`
 - Commande : `node dist/server.js`
 
 Doc de config Node.js : https://help.alwaysdata.com/en/languages/nodejs/
@@ -74,22 +92,12 @@ Dans la configuration du site (section variables d'environnement), ajoutez :
 |---|---|
 | `DATABASE_URL` | la chaîne construite à l'étape 1 |
 | `JWT_SECRET` | une valeur aléatoire longue (`openssl rand -hex 32`) |
-| `CORS_ORIGIN` | `https://coupleplanner.alwaysdata.net` (le frontend et l'API étant sur le même domaine, c'est surtout une protection en profondeur ici — utile si vous ajoutez plus tard un accès direct à l'API depuis un autre domaine) |
+| `CORS_ORIGIN` | `https://coupleplanner.alwaysdata.net` (le frontend et l'API étant sur le même domaine, c'est surtout une protection en profondeur) |
 | `GEMINI_API_KEY` | votre clé Gemini (optionnel — sans clé, repli automatique sur le mock) |
 
-(`PORT` et `IP` sont fournis automatiquement par alwaysdata, pas besoin de les définir.)
+(`PORT` et `IP` sont fournis automatiquement par alwaysdata.)
 
-### Build + migrations (via SSH)
-```bash
-cd ~/coupleplanner/backend
-yarn install          # installe aussi les devDependencies → prisma CLI dispo (postinstall lance prisma generate)
-cp .env.example .env  # puis éditez .env avec les mêmes valeurs que ci-dessus (utile pour lancer des commandes en SSH)
-yarn prisma:deploy    # applique les migrations en base — JAMAIS `prisma:migrate` (= migrate dev) en production
-yarn build            # compile TypeScript -> dist/
-yarn seed              # optionnel : données de démo (Alice/Bob) — à éviter si vous avez déjà des données réelles
-```
-
-Redémarrez le site depuis le panel (ou il redémarre seul au premier appel). Vérifiez :
+Vérifiez :
 ```bash
 curl https://coupleplanner.alwaysdata.net/api/health
 # {"status":"ok"}
@@ -98,25 +106,27 @@ Si ça renvoie une 404, testez aussi `curl https://coupleplanner.alwaysdata.net/
 
 ---
 
-## 4. Frontend — site fichiers statiques sur `/`
+## 3. Frontend — build local + upload
 
-Le frontend et l'API étant **sur le même domaine**, l'URL de l'API peut être **relative** (pas besoin d'indiquer un domaine) : `EXPO_PUBLIC_API_URL=""`. Les appels partiront de `/api/...`, résolus par le navigateur vers `https://coupleplanner.alwaysdata.net/api/...` — aucun souci de CORS.
-
-⚠️ Cette variable est figée dans le bundle JS **au moment du build**, jamais lue au runtime. Et le cache de Metro (le bundler) **ne s'invalide pas automatiquement** si vous changez juste la variable d'environnement entre deux builds — le script `build:web` inclut déjà `--clear` pour éviter ce piège (vérifié : sans `--clear`, un rebuild avec une variable différente réutilisait silencieusement l'ancienne valeur inlinée).
+Le frontend et l'API étant **sur le même domaine**, l'URL de l'API peut être **relative** : `EXPO_PUBLIC_API_URL=""`. Les appels partiront de `/api/...`, résolus vers `https://coupleplanner.alwaysdata.net/api/...` — aucun souci de CORS.
 
 ```bash
-cd ~/coupleplanner/frontend
+cd frontend
 yarn install
-EXPO_PUBLIC_API_URL="" yarn build:web
+EXPO_PUBLIC_API_URL="" yarn build:web   # --clear est déjà dans le script, important : sinon Metro garde l'ancienne valeur en cache
 ```
 
-Cela génère `frontend/dist/` (fichiers statiques + `.htaccess` de fallback SPA).
+Cela génère `frontend/dist/` (fichiers statiques + `.htaccess` de fallback SPA). Envoi :
+```bash
+ssh <user>@ssh-<compte>.alwaysdata.net "mkdir -p ~/coupleplanner-frontend"
+rsync -az --delete dist/ <user>@ssh-<compte>.alwaysdata.net:~/coupleplanner-frontend/
+```
 
 **Panel > Web > Sites > Add a site**
 - Type : **Fichiers statiques**
 - Domaine : `coupleplanner.alwaysdata.net`
 - Chemin : `/`
-- Répertoire : `~/coupleplanner/frontend/dist`
+- Répertoire : `~/coupleplanner-frontend`
 
 Vérifiez ensuite dans un navigateur :
 - `https://coupleplanner.alwaysdata.net` → écran de connexion
@@ -125,20 +135,24 @@ Vérifiez ensuite dans un navigateur :
 
 ---
 
-## 5. Mettre à jour après un nouveau commit
+## 4. Mettre à jour après un nouveau commit
+
+Tout se refait en local, rien à installer sur le serveur :
 
 ```bash
-ssh <user>@ssh-<compte>.alwaysdata.net
-cd ~/coupleplanner && git pull
-
 # Backend
-cd backend && yarn install && yarn prisma:deploy && yarn build
+cd backend
+./scripts/pack-for-deploy.sh
+scp coupleplanner-backend-deploy.tar.gz <user>@ssh-<compte>.alwaysdata.net:~/
+ssh <user>@ssh-<compte>.alwaysdata.net "rm -rf ~/coupleplanner-backend/* && tar xzf coupleplanner-backend-deploy.tar.gz -C ~/coupleplanner-backend && rm coupleplanner-backend-deploy.tar.gz"
+# + relancez les migrations si le schéma a changé (voir 2.3)
+# + redémarrez le site Node.js depuis le panel (l'ancien process continue de tourner sinon)
 
 # Frontend
-cd ../frontend && yarn install && EXPO_PUBLIC_API_URL="" yarn build:web
+cd ../frontend
+EXPO_PUBLIC_API_URL="" yarn build:web
+rsync -az --delete dist/ <user>@ssh-<compte>.alwaysdata.net:~/coupleplanner-frontend/
 ```
-
-Le site Node.js redémarre automatiquement (surveillance de process par alwaysdata) ; le site statique sert immédiatement les nouveaux fichiers.
 
 ---
 
@@ -148,13 +162,14 @@ Contrairement au web, une app mobile n'a pas de notion d'« origine » : il faut
 ```bash
 EXPO_PUBLIC_API_URL=https://coupleplanner.alwaysdata.net/api npx expo run:ios
 ```
-(Le `/api` fait partie de l'URL de base ici, contrairement au web où il est déjà préfixé sur chaque appel — à garder en tête si vous testez ce chemin.)
+(Le `/api` fait partie de l'URL de base ici, contrairement au web où il est déjà préfixé sur chaque appel.)
 
 ---
 
 ## Notes et points à vérifier vous-même
 
-- **Comportement du préfixe `/api`** : géré des deux côtés côté backend (voir plus haut), mais si aucune des deux formes ne répond, le souci est probablement ailleurs (site mal configuré, process arrêté) — vérifiez les logs du site dans le panel.
+- **Redémarrage du site Node.js** après un déploiement : nécessaire pour charger le nouveau code, via le panel (pas de rechargement automatique connu à l'écrasement des fichiers).
+- **Comportement du préfixe `/api`** : géré des deux côtés côté backend (voir plus haut) ; si aucune des deux formes ne répond, vérifiez les logs du site dans le panel plutôt que le code.
 - **Emplacement des variables d'environnement** dans le panel peut avoir un intitulé légèrement différent selon la version de l'interface — cherchez « Environment » / « Variables d'environnement » dans l'édition du site.
 - **Notifications push, IA vocale (Gemini)** : optionnelles, l'app reste fonctionnelle sans (repli mock déjà en place).
 - Sources consultées : [Node.js](https://help.alwaysdata.com/en/languages/nodejs/) · [PostgreSQL](https://help.alwaysdata.com/en/web-hosting/databases/postgresql/) · [SSH](https://help.alwaysdata.com/en/web-hosting/remote-access/ssh/) · [Déployer une app React](https://help.alwaysdata.com/en/guides/deploy-react-app/)

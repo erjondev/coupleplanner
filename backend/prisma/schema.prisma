@@ -6,6 +6,11 @@
 
 generator client {
   provider = "prisma-client-js"
+  // "native" = binaire pour la machine qui lance `prisma generate` (dev local) ;
+  // "debian-openssl-3.0.x" = binaire pour le serveur alwaysdata (Debian 12 / OpenSSL 3.0),
+  // nécessaire quand le client est généré en local puis déployé tel quel (pas de
+  // build sur le serveur, cf. DEPLOY.md).
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
