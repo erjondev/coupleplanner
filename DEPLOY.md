@@ -18,6 +18,10 @@ alwaysdata permet plusieurs sites sur le même domaine avec des chemins différe
 
 - Accès SSH activé : **Panel alwaysdata > Remote access > SSH** → activer, définir un mot de passe ou une clé SSH.
   Doc : https://help.alwaysdata.com/en/web-hosting/remote-access/ssh/
+- **yarn** disponible sur le serveur : le repo utilise `yarn.lock` (pas `package-lock.json`), donc toutes les commandes ci-dessous utilisent `yarn`, pas `npm`, pour installer exactement les mêmes versions qu'en local. Vérifiez/installez-le une fois en SSH :
+  ```bash
+  yarn --version || npm install -g yarn   # pas besoin de root, tout est sandboxé par compte chez alwaysdata
+  ```
 
 ---
 
@@ -78,11 +82,11 @@ Dans la configuration du site (section variables d'environnement), ajoutez :
 ### Build + migrations (via SSH)
 ```bash
 cd ~/coupleplanner/backend
-npm install          # installe aussi les devDependencies → prisma CLI dispo (postinstall lance prisma generate)
-cp .env.example .env # puis éditez .env avec les mêmes valeurs que ci-dessus (utile pour lancer des commandes en SSH)
-npx prisma migrate deploy   # applique les migrations en base — JAMAIS `migrate dev` en production
-npm run build         # compile TypeScript -> dist/
-npm run seed           # optionnel : données de démo (Alice/Bob) — à éviter si vous avez déjà des données réelles
+yarn install          # installe aussi les devDependencies → prisma CLI dispo (postinstall lance prisma generate)
+cp .env.example .env  # puis éditez .env avec les mêmes valeurs que ci-dessus (utile pour lancer des commandes en SSH)
+yarn prisma:deploy    # applique les migrations en base — JAMAIS `prisma:migrate` (= migrate dev) en production
+yarn build            # compile TypeScript -> dist/
+yarn seed              # optionnel : données de démo (Alice/Bob) — à éviter si vous avez déjà des données réelles
 ```
 
 Redémarrez le site depuis le panel (ou il redémarre seul au premier appel). Vérifiez :
@@ -102,8 +106,8 @@ Le frontend et l'API étant **sur le même domaine**, l'URL de l'API peut être 
 
 ```bash
 cd ~/coupleplanner/frontend
-npm install
-EXPO_PUBLIC_API_URL="" npm run build:web
+yarn install
+EXPO_PUBLIC_API_URL="" yarn build:web
 ```
 
 Cela génère `frontend/dist/` (fichiers statiques + `.htaccess` de fallback SPA).
@@ -128,10 +132,10 @@ ssh <user>@ssh-<compte>.alwaysdata.net
 cd ~/coupleplanner && git pull
 
 # Backend
-cd backend && npm install && npx prisma migrate deploy && npm run build
+cd backend && yarn install && yarn prisma:deploy && yarn build
 
 # Frontend
-cd ../frontend && npm install && EXPO_PUBLIC_API_URL="" npm run build:web
+cd ../frontend && yarn install && EXPO_PUBLIC_API_URL="" yarn build:web
 ```
 
 Le site Node.js redémarre automatiquement (surveillance de process par alwaysdata) ; le site statique sert immédiatement les nouveaux fichiers.
