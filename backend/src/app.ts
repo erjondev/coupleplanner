@@ -16,10 +16,19 @@ app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/tasks', tasksRoutes);
-app.use('/api/calendar', calendarRoutes);
-app.use('/api/notification-tokens', notificationsRoutes);
+// Déployé derrière un proxy en chemin (ex: alwaysdata, un seul sous-domaine
+// partagé avec le frontend statique sur "/" et l'API sur "/api"). Selon que
+// le proxy conserve ou retire le préfixe "/api" avant de transmettre la
+// requête à ce process Node, on monte les routes aux deux emplacements —
+// un seul des deux matchera réellement pour une requête donnée.
+const apiRouter = express.Router();
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/tasks', tasksRoutes);
+apiRouter.use('/calendar', calendarRoutes);
+apiRouter.use('/notification-tokens', notificationsRoutes);
+
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
 
 // Gestion d'erreur globale
 app.use(
