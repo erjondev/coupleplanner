@@ -33,17 +33,17 @@ alwaysdata permet plusieurs sites sur le même domaine avec des chemins différe
 ## 1. Base de données PostgreSQL
 
 **Panel > Databases > PostgreSQL > Add a database**
-- Nom : `coupleplanner`
+- Nom donné : `coupleplanner` — **mais alwaysdata a créé la base sous le nom `coupleplanner_sql`** (constaté en prod : le panel peut renommer/suffixer le nom choisi). Vérifiez le nom **réel** affiché dans la liste des bases, ne présumez pas qu'il correspond exactement à ce que vous avez tapé.
 - Notez le serveur affiché : `postgresql-coupleplanner.alwaysdata.net`
 
 **Panel > Databases > PostgreSQL Users > Add a database user**
-- Créez un utilisateur (ex: `coupleplanner`), mot de passe, puis donnez-lui tous les droits sur la base `coupleplanner`.
+- Créez un utilisateur (ex: `coupleplanner`), mot de passe, puis donnez-lui tous les droits sur la base créée ci-dessus.
 
-Construisez la chaîne de connexion :
+Construisez la chaîne de connexion **avec le nom réel de la base** (ici `coupleplanner_sql`) :
 ```
-postgresql://coupleplanner:<password>@postgresql-coupleplanner.alwaysdata.net:5432/coupleplanner?schema=public
+postgresql://coupleplanner:<password>@postgresql-coupleplanner.alwaysdata.net:5432/coupleplanner_sql?schema=public
 ```
-Gardez-la de côté, elle sert de `DATABASE_URL`.
+Gardez-la de côté, elle sert de `DATABASE_URL` — à utiliser identique pour les migrations (étape 2.3) ET pour la variable d'environnement du site backend (étape 2.4).
 
 Doc : https://help.alwaysdata.com/en/web-hosting/databases/postgresql/
 
@@ -70,7 +70,7 @@ rm coupleplanner-backend-deploy.tar.gz
 ### 2.3 Migrations (en local, contre la base de production — pas besoin d'outillage sur le serveur)
 ```bash
 cd backend
-DATABASE_URL="postgresql://coupleplanner:<password>@postgresql-coupleplanner.alwaysdata.net:5432/coupleplanner?schema=public" \
+DATABASE_URL="postgresql://coupleplanner:<password>@postgresql-coupleplanner.alwaysdata.net:5432/coupleplanner_sql?schema=public" \
   yarn prisma:deploy   # = prisma migrate deploy — JAMAIS `prisma:migrate` (migrate dev) en production
 ```
 La base alwaysdata est joignable depuis l'extérieur via son nom d'hôte public, donc pas besoin d'être en SSH pour ça.
