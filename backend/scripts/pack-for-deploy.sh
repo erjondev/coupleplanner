@@ -35,7 +35,25 @@ echo "==> Suppression du moteur Prisma natif (macOS) — seuls ceux du serveur s
 find "$STAGING/node_modules/.prisma/client" -iname "libquery_engine-*" ! -iname "*debian-openssl*" -delete
 
 OUT="coupleplanner-backend-deploy.tar.gz"
-tar czf "$OUT" -C "$STAGING" .
+# COPYFILE_DISABLE évite que le tar de macOS n'ajoute des fichiers "._xxx"
+# (métadonnées AppleDouble) qui polluent l'archive une fois extraite sur le serveur.
+COPYFILE_DISABLE=1 tar czf "$OUT" -C "$STAGING" .
+
+echo "==> Vérification du contenu de l'archive (évite un déploiement d'un paquet cassé)"
+VERIFY="$(mktemp -d)"
+tar xzf "$OUT" -C "$VERIFY"
+if [ ! -f "$VERIFY/dist/server.js" ]; then
+  echo "ERREUR : dist/server.js est absent de l'archive générée !" >&2
+  rm -rf "$VERIFY"
+  exit 1
+fi
+if ! find "$VERIFY/node_modules/.prisma/client" -iname "libquery_engine-debian-*" -print -quit | grep -q .; then
+  echo "ERREUR : aucun moteur Prisma Debian n'est présent dans l'archive générée !" >&2
+  rm -rf "$VERIFY"
+  exit 1
+fi
+rm -rf "$VERIFY"
+echo "==> OK : dist/server.js et le(s) moteur(s) Prisma Debian sont bien présents dans l'archive."
 
 echo
 echo "==> Paquet prêt : backend/$OUT ($(du -sh "$OUT" | cut -f1))"
