@@ -6,11 +6,12 @@
 
 generator client {
   provider = "prisma-client-js"
-  // "native" = binaire pour la machine qui lance `prisma generate` (dev local) ;
-  // "debian-openssl-3.0.x" = binaire pour le serveur alwaysdata (Debian 12 / OpenSSL 3.0),
-  // nécessaire quand le client est généré en local puis déployé tel quel (pas de
-  // build sur le serveur, cf. DEPLOY.md).
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  // "native" = binaire pour la machine qui lance `prisma generate` (dev local).
+  // Le serveur alwaysdata a "OpenSSL 3.0.20" en SSH, mais le bac d'exécution
+  // réel des sites Node.js s'est avéré différent : Prisma y détecte
+  // "debian-openssl-1.0.x" au runtime (constaté en prod, cf. DEPLOY.md).
+  // On embarque les deux variantes pour ne pas dépendre de cette incohérence.
+  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.0.x"]
 }
 
 datasource db {

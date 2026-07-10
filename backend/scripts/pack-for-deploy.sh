@@ -14,7 +14,7 @@ trap 'rm -rf "$STAGING"' EXIT
 echo "==> Installation des dépendances (dev incluses, nécessaires pour generate/build)"
 yarn install
 
-echo "==> Génération du client Prisma (natif + debian-openssl-3.0.x pour le serveur)"
+echo "==> Génération du client Prisma (natif + variantes debian pour le serveur)"
 npx prisma generate
 
 echo "==> Compilation TypeScript"
@@ -31,8 +31,8 @@ rm -rf \
   "$STAGING/node_modules/prisma" \
   "$STAGING/node_modules/@types"
 
-echo "==> Suppression du moteur Prisma natif (macOS) — seul celui du serveur est gardé"
-find "$STAGING/node_modules/.prisma/client" -iname "libquery_engine-*" ! -iname "*debian-openssl-3.0.x*" -delete
+echo "==> Suppression du moteur Prisma natif (macOS) — seuls ceux du serveur sont gardés"
+find "$STAGING/node_modules/.prisma/client" -iname "libquery_engine-*" ! -iname "*debian-openssl*" -delete
 
 OUT="coupleplanner-backend-deploy.tar.gz"
 tar czf "$OUT" -C "$STAGING" .
@@ -40,4 +40,4 @@ tar czf "$OUT" -C "$STAGING" .
 echo
 echo "==> Paquet prêt : backend/$OUT ($(du -sh "$OUT" | cut -f1))"
 echo "    Pour l'envoyer :"
-echo "    scp $OUT <user>@ssh-<compte>.alwaysdata.net:~/coupleplanner-backend-deploy.tar.gz"
+echo "    scp $OUT coupleplanner@ssh-coupleplanner.alwaysdata.net:~/coupleplanner-backend-deploy.tar.gz"
