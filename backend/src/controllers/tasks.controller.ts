@@ -5,6 +5,16 @@ import { hasPartnerPrivateConflict } from '../services/conflict.service';
 import { analyseVoiceTextAI } from '../services/voiceAnalyseAI.service';
 
 const CONFLICT_MESSAGE = 'Le partenaire a déjà un engagement privé sur ce créneau';
+const READONLY_MESSAGE = 'Cette tâche est assignée à votre partenaire : lecture seule';
+
+/**
+ * Une tâche n'est modifiable/supprimable que si elle m'est assignée ou n'est
+ * assignée à personne (tâche commune). Une tâche assignée au partenaire est en
+ * lecture seule.
+ */
+function isReadOnlyFor(userId: string, assignedTo: string | null): boolean {
+  return assignedTo !== null && assignedTo !== userId;
+}
 
 /** Récupère l'id du partenaire dans le couple (ou null). */
 async function getPartnerId(userId: string, coupleId: string): Promise<string | null> {
@@ -160,6 +170,9 @@ export async function updateTask(req: Request, res: Response) {
     include: { environment: { select: { type: true } } },
   });
   if (!existing) return res.status(404).json({ error: 'Tâche introuvable' });
+  if (isReadOnlyFor(userId, existing.assignedTo)) {
+    return res.status(403).json({ error: READONLY_MESSAGE });
+  }
 
   const data: Prisma.TaskUncheckedUpdateInput = {};
 
@@ -230,15 +243,18 @@ export async function updateTask(req: Request, res: Response) {
 
 /** DELETE /api/tasks/:id — supprime une tâche du couple. */
 export async function deleteTask(req: Request, res: Response) {
-  const { coupleId } = req.auth!;
+  const { userId, coupleId } = req.auth!;
   const { id } = req.params;
 
   // Sécurité : la tâche doit appartenir au couple de l'utilisateur
   const existing = await prisma.task.findFirst({
     where: { id, environment: { coupleId } },
-    select: { id: true },
+    select: { id: true, assignedTo: true },
   });
   if (!existing) return res.status(404).json({ error: 'Tâche introuvable' });
+  if (isReadOnlyFor(userId, existing.assignedTo)) {
+    return res.status(403).json({ error: READONLY_MESSAGE });
+  }
 
   await prisma.task.delete({ where: { id } });
   return res.status(204).send();

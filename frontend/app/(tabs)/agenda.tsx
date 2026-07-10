@@ -16,6 +16,7 @@ import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { getCalendar } from '../../lib/api';
+import { useAuth } from '../../lib/auth-context';
 import { CalendarEvent, Task } from '../../types';
 import EditTaskModal from '../../components/EditTaskModal';
 import CreateTaskModal from '../../components/CreateTaskModal';
@@ -69,6 +70,7 @@ function todayKey(): string {
 }
 
 export default function AgendaScreen() {
+  const { user } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selected, setSelected] = useState<string>(todayKey());
   const [month, setMonth] = useState<string>(todayKey().slice(0, 7)); // 'YYYY-MM'
@@ -139,6 +141,8 @@ export default function AgendaScreen() {
 
   const openEdit = (e: CalendarEvent) => {
     if (e.visibility === 'partner_busy') return; // opaque, non éditable
+    // Tâche assignée au partenaire : consultable mais non modifiable.
+    if (e.assignedTo !== null && e.assignedTo !== user?.id) return;
     const task: Task = {
       id: e.id,
       title: e.title,
@@ -147,7 +151,7 @@ export default function AgendaScreen() {
       startDatetime: e.start,
       endDatetime: e.end,
       isAllDay: e.isAllDay,
-      assignedTo: null,
+      assignedTo: e.assignedTo,
       assignee: null,
     };
     setEditing(task);
@@ -199,7 +203,10 @@ export default function AgendaScreen() {
           <Text style={styles.empty}>Aucun événement ce jour-là.</Text>
         )}
         {dayEvents.map((e) => {
-          const editable = e.visibility !== 'partner_busy';
+          // Non éditable si créneau opaque du partenaire, ou tâche assignée au partenaire.
+          const editable =
+            e.visibility !== 'partner_busy' &&
+            (e.assignedTo === null || e.assignedTo === user?.id);
           return (
             <TouchableOpacity
               key={e.id}

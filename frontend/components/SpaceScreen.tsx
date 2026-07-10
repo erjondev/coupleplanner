@@ -15,6 +15,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { deleteTask, getTasks, updateTaskStatus } from '../lib/api';
 import { confirmAction } from '../lib/notify';
+import { useAuth } from '../lib/auth-context';
 import { COLORS } from '../lib/theme';
 import { Space, Task } from '../types';
 import TaskCard, { nextStatus, previousStatus } from './TaskCard';
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export default function SpaceScreen({ space, emptyLabel }: Props) {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [micOpen, setMicOpen] = useState(false);
@@ -95,6 +97,8 @@ export default function SpaceScreen({ space, emptyLabel }: Props) {
         renderItem={({ item }) => (
           <TaskCard
             task={item}
+            // Lecture seule si la tâche est assignée au partenaire (pas à moi).
+            readOnly={item.assignedTo !== null && item.assignedTo !== user?.id}
             onToggleStatus={handleToggleStatus}
             onNextStatus={handleNextStatus}
             onPreviousStatus={handlePreviousStatus}

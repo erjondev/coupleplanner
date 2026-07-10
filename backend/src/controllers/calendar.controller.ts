@@ -15,6 +15,8 @@ type CalendarEvent =
       start: string;
       end: string | null;
       isAllDay: boolean;
+      /** À qui la tâche est assignée (null = commune). Sert au contrôle « lecture seule ». */
+      assignedTo: string | null;
     }
   | {
       id: string;
@@ -73,6 +75,7 @@ export async function getCalendar(req: Request, res: Response) {
       start,
       end,
       isAllDay: t.isAllDay,
+      assignedTo: t.assignedTo,
     };
   });
 

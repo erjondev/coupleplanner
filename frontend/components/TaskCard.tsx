@@ -47,6 +47,8 @@ function formatDate(task: Task): string | null {
 
 interface Props {
   task: Task;
+  /** Tâche assignée au partenaire : consultable mais non modifiable. */
+  readOnly?: boolean;
   onToggleStatus: (task: Task) => void;
   /** Fait passer la tâche au statut suivant (swipe vers la gauche). */
   onNextStatus: (task: Task) => void;
@@ -60,6 +62,7 @@ interface Props {
 
 export default function TaskCard({
   task,
+  readOnly = false,
   onToggleStatus,
   onNextStatus,
   onPreviousStatus,
@@ -127,8 +130,9 @@ export default function TaskCard({
   return (
     <Swipeable
       ref={swipeRef}
-      renderRightActions={renderRightActions}
-      renderLeftActions={renderLeftActions}
+      // En lecture seule : aucune action de swipe (ni statut, ni modifier/supprimer).
+      renderRightActions={readOnly ? undefined : renderRightActions}
+      renderLeftActions={readOnly ? undefined : renderLeftActions}
       overshootRight={false}
       overshootLeft={false}
       containerStyle={styles.swipeContainer}
@@ -136,7 +140,8 @@ export default function TaskCard({
       <TouchableOpacity
         style={styles.card}
         onPress={() => onToggleStatus(task)}
-        activeOpacity={0.7}
+        activeOpacity={readOnly ? 1 : 0.7}
+        disabled={readOnly}
       >
         <View style={[styles.statusDot, { backgroundColor: meta.color }]} />
         <View style={styles.content}>
@@ -147,6 +152,7 @@ export default function TaskCard({
             <Text style={[styles.statusLabel, { color: meta.color }]}>{meta.label}</Text>
             {date && <Text style={styles.date}>{date}</Text>}
             {task.assignee && <Text style={styles.assignee}>👤 {task.assignee.name}</Text>}
+            {readOnly && <Text style={styles.readOnly}>🔒 Lecture seule</Text>}
           </View>
         </View>
       </TouchableOpacity>
@@ -201,4 +207,5 @@ const styles = StyleSheet.create({
   statusLabel: { fontSize: 10, fontWeight: '600' },
   date: { fontSize: 10, color: '#7F8C8D' },
   assignee: { fontSize: 10, color: '#7F8C8D' },
+  readOnly: { fontSize: 10, color: '#95A5A6', fontStyle: 'italic' },
 });

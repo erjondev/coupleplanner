@@ -64,6 +64,7 @@ export type CalendarEvent =
       start: string;
       end: string | null;
       isAllDay: boolean;
+      assignedTo: string | null;
     }
   | {
       id: string;
