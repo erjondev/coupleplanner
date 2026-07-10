@@ -1,9 +1,10 @@
 import React, { useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 // Touchables importées de gesture-handler (et non de react-native) : requis pour que
 // les onPress soient bien reçus sur le web quand elles sont imbriquées dans un Swipeable.
 import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../lib/theme';
 import { Task, TaskStatus } from '../types';
 
 const STATUS_META: Record<TaskStatus, { label: string; color: string }> = {
@@ -73,10 +74,55 @@ export default function TaskCard({
   const date = formatDate(task);
   const swipeRef = useRef<Swipeable>(null);
 
-  // Swipe vers la gauche (actions à droite de la carte) : changement de statut + Modifier.
-  // Les 2 boutons de statut affichent le libellé du statut CIBLE (pas "Précédent"/"Suivant").
+  // Les 2 boutons de statut affichent le libellé du statut CIBLE.
   const prev = previousStatus(task.status);
   const next = nextStatus(task.status);
+
+  // --- Variante WEB : carte à coins arrondis avec boutons visibles en bas
+  // (le swipe est peu naturel à la souris) + effets de survol.
+  if (Platform.OS === 'web') {
+    return (
+      <Pressable style={({ hovered }: any) => [styles.webCard, hovered && styles.webCardHover]}>
+        <View style={styles.webHeader}>
+          <View style={[styles.webDot, { backgroundColor: meta.color }]} />
+          <Text style={[styles.webTitle, task.status === 'DONE' && styles.done]} numberOfLines={2}>
+            {task.title}
+          </Text>
+        </View>
+
+        <View style={styles.metaRow}>
+          <Text style={[styles.statusLabel, { color: meta.color }]}>{meta.label}</Text>
+          {date && <Text style={styles.date}>{date}</Text>}
+          {task.assignee && <Text style={styles.assignee}>👤 {task.assignee.name}</Text>}
+        </View>
+
+        {readOnly ? (
+          <Text style={[styles.readOnly, styles.webFooter]}>🔒 Lecture seule</Text>
+        ) : (
+          <View style={styles.webFooter}>
+            <View style={styles.webStatusGroup}>
+              <WebChip
+                color={STATUS_META[prev].color}
+                icon={STATUS_ICON[prev]}
+                label={STATUS_META[prev].label}
+                onPress={() => onPreviousStatus(task)}
+              />
+              <WebChip
+                color={STATUS_META[next].color}
+                icon={STATUS_ICON[next]}
+                label={STATUS_META[next].label}
+                onPress={() => onNextStatus(task)}
+              />
+            </View>
+            <View style={styles.webIconGroup}>
+              <WebIconBtn color="#3498DB" icon="create-outline" onPress={() => onEdit(task)} />
+              <WebIconBtn color="#C0392B" icon="trash-outline" onPress={() => onDelete(task)} />
+            </View>
+          </View>
+        )}
+      </Pressable>
+    );
+  }
 
   const renderRightActions = () => (
     <>
@@ -160,6 +206,51 @@ export default function TaskCard({
   );
 }
 
+/** Petit bouton « pilule » de changement de statut (web). */
+function WebChip({
+  color,
+  icon,
+  label,
+  onPress,
+}: {
+  color: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ hovered }: any) => [styles.chip, { backgroundColor: color }, hovered && styles.pressableHover]}
+    >
+      <Ionicons name={icon} size={14} color="#fff" />
+      <Text style={styles.chipText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Bouton icône (modifier / supprimer) sur le web. */
+function WebIconBtn({
+  color,
+  icon,
+  onPress,
+}: {
+  color: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ hovered }: any) => [styles.iconBtn, hovered && { backgroundColor: color }]}
+    >
+      {({ hovered }: any) => (
+        <Ionicons name={icon} size={18} color={hovered ? '#fff' : color} />
+      )}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   swipeContainer: {
     marginBottom: 8,
@@ -208,4 +299,61 @@ const styles = StyleSheet.create({
   date: { fontSize: 10, color: '#7F8C8D' },
   assignee: { fontSize: 10, color: '#7F8C8D' },
   readOnly: { fontSize: 10, color: '#95A5A6', fontStyle: 'italic' },
+
+  // --- Variante web (carte + boutons visibles) ---
+  webCard: {
+    flex: 1,
+    minHeight: 132,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ECECEC',
+    padding: 16,
+    gap: 8,
+    cursor: 'auto',
+  },
+  webCardHover: {
+    borderColor: COLORS.secondary,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    transform: [{ translateY: -2 }],
+  },
+  webHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  webDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
+  webTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: '#2C3E50' },
+  webFooter: {
+    marginTop: 'auto',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  webStatusGroup: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  webIconGroup: { flexDirection: 'row', gap: 6 },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    cursor: 'pointer',
+  },
+  chipText: { color: '#fff', fontWeight: '600', fontSize: 12 },
+  iconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ECECEC',
+    cursor: 'pointer',
+  },
+  pressableHover: {
+    opacity: 0.85,
+  },
 });

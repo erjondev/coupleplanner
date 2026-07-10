@@ -6,6 +6,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,6 +22,7 @@ import { CalendarEvent, Task } from '../../types';
 import EditTaskModal from '../../components/EditTaskModal';
 import CreateTaskModal from '../../components/CreateTaskModal';
 import { COLORS as PALETTE } from '../../lib/theme';
+import { SIDEBAR_WIDTH, useIsWideWeb } from '../../lib/responsive';
 
 const CONFLICT_COLOR = '#C0392B';
 
@@ -71,6 +73,7 @@ function todayKey(): string {
 
 export default function AgendaScreen() {
   const { user } = useAuth();
+  const wideWeb = useIsWideWeb();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selected, setSelected] = useState<string>(todayKey());
   const [month, setMonth] = useState<string>(todayKey().slice(0, 7)); // 'YYYY-MM'
@@ -163,7 +166,8 @@ export default function AgendaScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, wideWeb && { paddingLeft: SIDEBAR_WIDTH }]}>
+      <View style={[styles.content, Platform.OS === 'web' && styles.contentWeb]}>
       <Calendar
         current={`${month}-01`}
         firstDay={1} // la semaine commence le lundi
@@ -226,6 +230,7 @@ export default function AgendaScreen() {
           );
         })}
       </ScrollView>
+      </View>
 
       {/* Bouton flottant : créer un événement sur le jour sélectionné */}
       <TouchableOpacity style={styles.fab} onPress={() => setCreating(selected)} activeOpacity={0.8}>
@@ -249,6 +254,9 @@ export default function AgendaScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PALETTE.primaryLight },
+  content: { flex: 1 },
+  // Sur le web, on limite la largeur et on centre pour éviter un calendrier étiré.
+  contentWeb: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingTop: 16 },
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
