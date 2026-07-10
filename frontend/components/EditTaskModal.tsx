@@ -126,6 +126,7 @@ export default function EditTaskModal({ task, onClose, onSaved }: Props) {
             value={description}
             onChangeText={setDescription}
             placeholder="Optionnel"
+            placeholderTextColor="#999"
             multiline
           />
 
@@ -244,6 +245,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     fontSize: 16,
+    color: '#2C3E50',
   },
   multiline: { minHeight: 64, textAlignVertical: 'top' },
   segments: { flexDirection: 'row', gap: 8 },

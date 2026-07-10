@@ -155,6 +155,7 @@ export default function VoiceModal({ visible, onClose, onTaskCreated }: Props) {
                 value={voiceText}
                 onChangeText={setVoiceText}
                 placeholder='Ex : "Ajoute à notre liste de réparer la voiture ce samedi"'
+                placeholderTextColor="#999"
                 multiline
                 autoFocus
               />
@@ -285,6 +286,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     fontSize: 16,
+    color: '#2C3E50',
   },
   voiceInput: { minHeight: 80, textAlignVertical: 'top' },
   micBtn: {

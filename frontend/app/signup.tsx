@@ -76,12 +76,14 @@ export default function SignupScreen() {
             value={name}
             onChangeText={setName}
             placeholder="Votre prénom"
+            placeholderTextColor="#999"
           />
           <TextInput
             style={styles.input}
             value={email}
             onChangeText={setEmail}
             placeholder="Email"
+            placeholderTextColor="#999"
             autoCapitalize="none"
             keyboardType="email-address"
           />
@@ -90,6 +92,7 @@ export default function SignupScreen() {
             value={password}
             onChangeText={setPassword}
             placeholder="Mot de passe (min. 6 caractères)"
+            placeholderTextColor="#999"
             secureTextEntry
           />
 
@@ -104,6 +107,7 @@ export default function SignupScreen() {
               value={inviteCode}
               onChangeText={(t) => setInviteCode(t.toUpperCase())}
               placeholder="Code (ex : J5EK8K)"
+              placeholderTextColor="#999"
               autoCapitalize="characters"
               autoCorrect={false}
             />
@@ -150,6 +154,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     fontSize: 16,
+    color: '#2C3E50',
   },
   codeInput: { letterSpacing: 3, fontWeight: '700', textAlign: 'center' },
   switchRow: {

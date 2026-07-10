@@ -13,12 +13,12 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../lib/auth-context';
 import { COLORS } from '../lib/theme';
 
-/** Écran de connexion (comptes de démo pré-remplis, cf. seed backend). */
+/** Écran de connexion. */
 export default function LoginScreen() {
   const router = useRouter();
   const { signIn } = useAuth();
-  const [email, setEmail] = useState('alice@demo.fr');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -49,6 +49,7 @@ export default function LoginScreen() {
           value={email}
           onChangeText={setEmail}
           placeholder="Email"
+          placeholderTextColor="#999"
           autoCapitalize="none"
           keyboardType="email-address"
         />
@@ -57,6 +58,7 @@ export default function LoginScreen() {
           value={password}
           onChangeText={setPassword}
           placeholder="Mot de passe"
+          placeholderTextColor="#999"
           secureTextEntry
         />
 
@@ -73,8 +75,6 @@ export default function LoginScreen() {
         <TouchableOpacity onPress={() => router.push('/signup')}>
           <Text style={styles.link}>Pas encore de compte ? Créer un compte</Text>
         </TouchableOpacity>
-
-        <Text style={styles.hint}>Démo : alice@demo.fr ou bob@demo.fr / password123</Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -99,6 +99,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     fontSize: 16,
+    color: '#2C3E50',
   },
   button: {
     backgroundColor: COLORS.primary,
@@ -109,5 +110,4 @@ const styles = StyleSheet.create({
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   error: { color: '#C0392B', textAlign: 'center' },
   link: { textAlign: 'center', color: COLORS.primary, fontWeight: '600', marginTop: 4 },
-  hint: { textAlign: 'center', color: '#AAA', fontSize: 12, marginTop: 4 },
 });

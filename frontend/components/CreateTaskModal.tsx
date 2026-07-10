@@ -108,6 +108,7 @@ export default function CreateTaskModal({ day, onClose, onCreated }: Props) {
             value={title}
             onChangeText={setTitle}
             placeholder="Ex : Dîner au restaurant"
+            placeholderTextColor="#999"
             autoFocus
           />
 
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   dayText: { color: '#7F8C8D', textTransform: 'capitalize' },
   label: { fontSize: 13, fontWeight: '600', color: '#2C3E50', marginTop: 6 },
-  input: { borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 10, padding: 12, fontSize: 16 },
+  input: { borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 10, padding: 12, fontSize: 16, color: '#2C3E50' },
   segments: { flexDirection: 'row', gap: 8 },
   segment: {
     flex: 1,
