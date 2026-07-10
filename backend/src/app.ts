@@ -20,7 +20,9 @@ const allowedOrigins = process.env.CORS_ORIGIN?.split(',').map((o) => o.trim());
 app.use(cors({ origin: allowedOrigins ?? true }));
 app.use(express.json());
 
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+const health = (_req: express.Request, res: express.Response) => res.json({ status: 'ok' });
+app.get('/health', health);
+app.get('/api/health', health);
 
 // Déployé derrière un proxy en chemin (ex: alwaysdata, un seul sous-domaine
 // partagé avec le frontend statique sur "/" et l'API sur "/api"). Selon que
