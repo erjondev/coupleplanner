@@ -1,4 +1,10 @@
 import express from 'express';
+// Doit être importé juste après 'express' et avant la déclaration des routes :
+// patche Express 4 pour transmettre les rejets de promesses des handlers async
+// au middleware d'erreur ci-dessous (sans ça, une erreur async non catchée
+// — ex: la base de données injoignable — fait planter tout le process Node,
+// pas seulement la requête en cours).
+import 'express-async-errors';
 import cors from 'cors';
 import authRoutes from './routes/auth.routes';
 import tasksRoutes from './routes/tasks.routes';
