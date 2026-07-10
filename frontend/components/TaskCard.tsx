@@ -13,6 +13,13 @@ const STATUS_META: Record<TaskStatus, { label: string; color: string }> = {
   DONE: { label: 'Terminé', color: '#27AE60' },
 };
 
+/** Libellé d'ACTION vers un statut (web) : formule à la 1re personne. */
+const STATUS_ACTION: Record<TaskStatus, string> = {
+  TODO: 'Je mets en pause',
+  IN_PROGRESS: 'Je débute la tâche',
+  DONE: "J'ai terminé",
+};
+
 const STATUS_ICON: Record<TaskStatus, keyof typeof Ionicons.glyphMap> = {
   TODO: 'ellipse-outline',
   IN_PROGRESS: 'time-outline',
@@ -101,16 +108,16 @@ export default function TaskCard({
         ) : (
           <View style={styles.webFooter}>
             <View style={styles.webStatusGroup}>
-              <WebChip
+              <WebActionButton
                 color={STATUS_META[prev].color}
                 icon={STATUS_ICON[prev]}
-                label={STATUS_META[prev].label}
+                label={STATUS_ACTION[prev]}
                 onPress={() => onPreviousStatus(task)}
               />
-              <WebChip
+              <WebActionButton
                 color={STATUS_META[next].color}
                 icon={STATUS_ICON[next]}
-                label={STATUS_META[next].label}
+                label={STATUS_ACTION[next]}
                 onPress={() => onNextStatus(task)}
               />
             </View>
@@ -206,8 +213,9 @@ export default function TaskCard({
   );
 }
 
-/** Petit bouton « pilule » de changement de statut (web). */
-function WebChip({
+/** Bouton d'action de changement de statut (web) : contour, sans fond, avec
+ *  un léger remplissage au survol pour l'affordance. */
+function WebActionButton({
   color,
   icon,
   label,
@@ -221,10 +229,14 @@ function WebChip({
   return (
     <Pressable
       onPress={onPress}
-      style={({ hovered }: any) => [styles.chip, { backgroundColor: color }, hovered && styles.pressableHover]}
+      style={({ hovered }: any) => [
+        styles.actionBtn,
+        { borderColor: color },
+        hovered && { backgroundColor: `${color}14` }, // teinte ~8% au survol
+      ]}
     >
-      <Ionicons name={icon} size={14} color="#fff" />
-      <Text style={styles.chipText}>{label}</Text>
+      <Ionicons name={icon} size={15} color={color} />
+      <Text style={[styles.actionBtnText, { color }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -333,16 +345,18 @@ const styles = StyleSheet.create({
   },
   webStatusGroup: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   webIconGroup: { flexDirection: 'row', gap: 6 },
-  chip: {
+  actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    backgroundColor: 'transparent',
     cursor: 'pointer',
   },
-  chipText: { color: '#fff', fontWeight: '600', fontSize: 12 },
+  actionBtnText: { fontWeight: '600', fontSize: 12 },
   iconBtn: {
     width: 34,
     height: 34,
@@ -352,8 +366,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ECECEC',
     cursor: 'pointer',
-  },
-  pressableHover: {
-    opacity: 0.85,
   },
 });
