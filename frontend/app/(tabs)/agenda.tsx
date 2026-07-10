@@ -162,6 +162,7 @@ export default function AgendaScreen() {
     <View style={styles.container}>
       <Calendar
         current={`${month}-01`}
+        firstDay={1} // la semaine commence le lundi
         markingType="multi-dot"
         markedDates={markedDates}
         onDayPress={(d) => setSelected(d.dateString)}
