@@ -1,0 +1,8 @@
+# Fallback SPA pour l'hébergement statique (Apache) : toute URL qui ne
+# correspond pas à un fichier/dossier existant retombe sur index.html,
+# pour que expo-router puisse gérer la navigation côté client
+# (ex: accès direct à /login ou rafraîchissement sur /agenda).
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]

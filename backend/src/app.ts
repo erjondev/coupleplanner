@@ -7,7 +7,11 @@ import notificationsRoutes from './routes/notifications.routes';
 
 const app = express();
 
-app.use(cors()); // ouvert pour le dev local (Expo Web tourne sur un autre port)
+// CORS_ORIGIN : liste d'origines autorisées séparées par des virgules
+// (ex: "https://coupleplanner.alwaysdata.net"). Sans variable définie (dev
+// local), on autorise tout car le frontend Expo tourne sur un port différent.
+const allowedOrigins = process.env.CORS_ORIGIN?.split(',').map((o) => o.trim());
+app.use(cors({ origin: allowedOrigins ?? true }));
 app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
