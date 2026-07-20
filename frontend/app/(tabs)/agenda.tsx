@@ -21,6 +21,7 @@ import { useAuth } from '../../lib/auth-context';
 import { CalendarEvent, Task } from '../../types';
 import EditTaskModal from '../../components/EditTaskModal';
 import CreateTaskModal from '../../components/CreateTaskModal';
+import CalendarSyncModal from '../../components/CalendarSyncModal';
 import { COLORS as PALETTE } from '../../lib/theme';
 import { SIDEBAR_WIDTH, useIsWideWeb } from '../../lib/responsive';
 
@@ -80,6 +81,7 @@ export default function AgendaScreen() {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [creating, setCreating] = useState<string | null>(null); // jour cible du '+'
+  const [syncOpen, setSyncOpen] = useState(false);
 
   const loadMonth = useCallback(async (ym: string) => {
     const [year, mon] = ym.split('-').map(Number);
@@ -168,6 +170,16 @@ export default function AgendaScreen() {
   return (
     <View style={[styles.container, wideWeb && { paddingLeft: SIDEBAR_WIDTH }]}>
       <View style={[styles.content, Platform.OS === 'web' && styles.contentWeb]}>
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          style={styles.syncBtn}
+          onPress={() => setSyncOpen(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="sync-outline" size={16} color={PALETTE.primary} />
+          <Text style={styles.syncBtnText}>Synchroniser mon agenda</Text>
+        </TouchableOpacity>
+      </View>
       <Calendar
         current={`${month}-01`}
         firstDay={1} // la semaine commence le lundi
@@ -248,6 +260,8 @@ export default function AgendaScreen() {
         onClose={() => setCreating(null)}
         onCreated={() => loadMonth(month)}
       />
+
+      <CalendarSyncModal visible={syncOpen} onClose={() => setSyncOpen(false)} />
     </View>
   );
 }
@@ -257,6 +271,19 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   // Sur le web, on limite la largeur et on centre pour éviter un calendrier étiré.
   contentWeb: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingTop: 16 },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingTop: 8 },
+  syncBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: PALETTE.primaryBorder,
+    backgroundColor: '#fff',
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  syncBtnText: { fontSize: 13, fontWeight: '600', color: PALETTE.primary },
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',

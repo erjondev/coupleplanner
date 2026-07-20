@@ -55,6 +55,11 @@ model User {
   passwordHash String  @map("password_hash")
   name         String
   coupleId     String? @map("couple_id")
+  // Jeton secret d'abonnement au flux ICS (URL privée collée dans Google/Apple
+  // Agenda). Généré à la demande ; sa présence dans l'URL EST le contrôle d'accès
+  // (les apps calendrier ne peuvent pas envoyer d'en-tête d'auth). Régénérable
+  // pour révoquer un ancien lien.
+  calendarFeedToken String? @unique @map("calendar_feed_token")
 
   couple             Couple?             @relation(fields: [coupleId], references: [id])
   environments       Environment[]

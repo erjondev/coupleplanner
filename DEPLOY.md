@@ -94,8 +94,13 @@ Dans la configuration du site (section variables d'environnement), ajoutez :
 | `JWT_SECRET` | une valeur aléatoire longue (`openssl rand -hex 32`) |
 | `CORS_ORIGIN` | `https://coupleplanner.alwaysdata.net` (le frontend et l'API étant sur le même domaine, c'est surtout une protection en profondeur) |
 | `GEMINI_API_KEY` | votre clé Gemini (optionnel — sans clé, repli automatique sur le mock) |
+| `PUBLIC_API_URL` | `https://coupleplanner.alwaysdata.net` (optionnel — base des URL d'abonnement ICS `.../api/calendar/feed/<token>.ics` ; sans elle, l'URL est reconstruite depuis la requête via `X-Forwarded-Proto`/`Host`) |
 
 (`PORT` et `IP` sont fournis automatiquement par alwaysdata.)
+
+> **Nouvelle migration `add_calendar_feed_token`** (abonnement calendrier ICS) :
+> elle est appliquée par le `yarn prisma:deploy` de l'étape 1 comme toute autre
+> migration — rien de spécial à faire au-delà de ce déploiement standard.
 
 Vérifiez :
 ```bash

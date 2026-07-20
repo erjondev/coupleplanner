@@ -104,6 +104,16 @@ export function getCalendar(from: string, to: string) {
   );
 }
 
+/** URL d'abonnement ICS de l'utilisateur (créée à la volée si absente). */
+export function getCalendarFeedUrl() {
+  return request<{ url: string }>('/api/calendar/feed');
+}
+
+/** Régénère le jeton du flux ICS : l'ancien lien cesse de fonctionner. */
+export function rotateCalendarFeed() {
+  return request<{ url: string }>('/api/calendar/feed/rotate', { method: 'POST' });
+}
+
 /** Envoie le texte "dicté" à l'endpoint d'analyse IA (mocké côté backend). */
 export function voiceAnalyse(text: string) {
   return request<VoiceAnalysis>('/api/tasks/voice-analyse', {
