@@ -65,6 +65,22 @@ export function getMe() {
   return request<AuthSession>('/api/auth/me');
 }
 
+/** Demande un code de réinitialisation (réponse générique, anti-énumération). */
+export function forgotPassword(email: string) {
+  return request<{ message: string }>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+/** Réinitialise le mot de passe via le code reçu ; renvoie une session connectée. */
+export function resetPassword(email: string, code: string, password: string) {
+  return request<AuthResponse>('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, code, password }),
+  });
+}
+
 // --- Tâches ---
 
 export function getTasks(space: Space) {

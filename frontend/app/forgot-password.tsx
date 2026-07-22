@@ -13,23 +13,28 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../lib/auth-context';
 import { COLORS } from '../lib/theme';
 
-/** Écran de connexion. */
-export default function LoginScreen() {
+/** Écran « Mot de passe oublié » : saisie de l'email pour recevoir un code. */
+export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { requestPasswordReset } = useAuth();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleSubmit = async () => {
+    if (!email.trim()) {
+      setError('Email requis');
+      return;
+    }
     setError(null);
+    setInfo(null);
     setLoading(true);
     try {
-      await signIn(email.trim(), password);
-      router.replace('/(tabs)/notre-espace');
+      const message = await requestPasswordReset(email.trim());
+      setInfo(message);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Connexion impossible');
+      setError(e instanceof Error ? e.message : "Échec de l'envoi");
     } finally {
       setLoading(false);
     }
@@ -41,8 +46,10 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.card}>
-        <Text style={styles.logo}>💑 CouplePlanner</Text>
-        <Text style={styles.subtitle}>Vos tâches, à deux.</Text>
+        <Text style={styles.logo}>🔑 Mot de passe oublié</Text>
+        <Text style={styles.subtitle}>
+          Entrez votre email : nous vous enverrons un code de réinitialisation.
+        </Text>
 
         <TextInput
           style={styles.input}
@@ -52,32 +59,31 @@ export default function LoginScreen() {
           placeholderTextColor="#999"
           autoCapitalize="none"
           keyboardType="email-address"
-        />
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Mot de passe"
-          placeholderTextColor="#999"
-          secureTextEntry
+          editable={!loading}
         />
 
         {error && <Text style={styles.error}>{error}</Text>}
+        {info && <Text style={styles.info}>{info}</Text>}
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Se connecter</Text>
-          )}
-        </TouchableOpacity>
+        {info ? (
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => router.push({ pathname: '/reset-password', params: { email: email.trim() } })}
+          >
+            <Text style={styles.buttonText}>J'ai reçu un code →</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Envoyer le code</Text>
+            )}
+          </TouchableOpacity>
+        )}
 
-        <TouchableOpacity onPress={() => router.push('/forgot-password')}>
-          <Text style={styles.link}>Mot de passe oublié ?</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => router.push('/signup')}>
-          <Text style={styles.link}>Pas encore de compte ? Créer un compte</Text>
+        <TouchableOpacity onPress={() => router.replace('/login')}>
+          <Text style={styles.link}>← Retour à la connexion</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -95,7 +101,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: 12,
   },
-  logo: { fontSize: 28, fontWeight: '700', textAlign: 'center' },
+  logo: { fontSize: 24, fontWeight: '700', textAlign: 'center' },
   subtitle: { textAlign: 'center', color: '#888', marginBottom: 8 },
   input: {
     borderWidth: 1,
@@ -105,13 +111,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2C3E50',
   },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    padding: 14,
-    alignItems: 'center',
-  },
+  button: { backgroundColor: COLORS.primary, borderRadius: 10, padding: 14, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   error: { color: '#C0392B', textAlign: 'center' },
+  info: { color: '#27AE60', textAlign: 'center' },
   link: { textAlign: 'center', color: COLORS.primary, fontWeight: '600', marginTop: 4 },
 });

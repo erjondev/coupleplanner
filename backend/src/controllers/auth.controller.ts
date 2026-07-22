@@ -4,9 +4,25 @@ import crypto from 'crypto';
 import { User } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { signToken } from '../middleware/auth';
+import { sendPasswordResetCode } from '../services/mailer.service';
 
 /** Alphabet sans caractères ambigus (pas de O/0/I/1) pour un code lisible. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/** Durée de validité d'un code de réinitialisation. */
+const RESET_CODE_TTL_MS = 30 * 60 * 1000;
+
+/**
+ * Message volontairement générique : on ne révèle jamais si un email correspond
+ * à un compte (anti-énumération).
+ */
+const GENERIC_RESET_MESSAGE =
+  "Si un compte existe pour cet email, un code de réinitialisation vient d'être envoyé.";
+
+/** Hash SHA-256 du code (on ne stocke jamais le code en clair). */
+function hashResetCode(code: string): string {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
 
 function randomCode(length = 6): string {
   const bytes = crypto.randomBytes(length);
@@ -153,6 +169,90 @@ export async function login(req: Request, res: Response) {
   const payload = await sessionPayload(user);
   return res.json({
     token: signToken({ userId: user.id, coupleId: user.coupleId }),
+    ...payload,
+  });
+}
+
+/**
+ * POST /api/auth/forgot-password — { email }
+ * Génère un code de réinitialisation (hashé + expirant) et l'envoie par email.
+ * Répond toujours 200 avec un message générique, que l'email existe ou non.
+ */
+export async function forgotPassword(req: Request, res: Response) {
+  const { email } = req.body as { email?: string };
+  if (!email || typeof email !== 'string') {
+    return res.status(400).json({ error: 'Email requis' });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+  if (user) {
+    const code = randomCode(8);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetTokenHash: hashResetCode(code),
+        resetTokenExpiresAt: new Date(Date.now() + RESET_CODE_TTL_MS),
+      },
+    });
+    try {
+      await sendPasswordResetCode(user.email, code, user.name);
+    } catch (e) {
+      // On ne divulgue pas l'échec d'envoi à l'appelant (anti-énumération).
+      console.error('Envoi du code de réinitialisation échoué :', e);
+    }
+  }
+
+  return res.json({ message: GENERIC_RESET_MESSAGE });
+}
+
+/**
+ * POST /api/auth/reset-password — { email, code, password }
+ * Valide le code (non expiré) et remplace le mot de passe. En cas de succès,
+ * connecte directement l'utilisateur (renvoie un token + session) et invalide
+ * le code.
+ */
+export async function resetPassword(req: Request, res: Response) {
+  const { email, code, password } = req.body as {
+    email?: string;
+    code?: string;
+    password?: string;
+  };
+  if (!email || !code || !password) {
+    return res.status(400).json({ error: 'Email, code et nouveau mot de passe requis' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Le mot de passe doit faire au moins 6 caractères' });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  const codeHash = hashResetCode(code.trim().toUpperCase());
+
+  const valid =
+    user &&
+    user.resetTokenHash &&
+    user.resetTokenExpiresAt &&
+    user.resetTokenHash === codeHash &&
+    user.resetTokenExpiresAt.getTime() >= Date.now();
+  if (!valid) {
+    return res.status(400).json({ error: 'Code invalide ou expiré' });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const updated = await prisma.user.update({
+    where: { id: user!.id },
+    data: { passwordHash, resetTokenHash: null, resetTokenExpiresAt: null },
+  });
+
+  if (!updated.coupleId) {
+    return res.status(403).json({ error: "L'utilisateur n'appartient à aucun couple" });
+  }
+
+  const payload = await sessionPayload(updated);
+  return res.json({
+    token: signToken({ userId: updated.id, coupleId: updated.coupleId }),
     ...payload,
   });
 }

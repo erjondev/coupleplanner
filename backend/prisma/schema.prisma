@@ -73,6 +73,10 @@ model User {
   // (les apps calendrier ne peuvent pas envoyer d'en-tête d'auth). Régénérable
   // pour révoquer un ancien lien.
   calendarFeedToken String? @unique @map("calendar_feed_token")
+  // Réinitialisation de mot de passe : hash SHA-256 du code envoyé par email
+  // (jamais le code en clair) + son expiration. Effacés après usage.
+  resetTokenHash      String?   @map("reset_token_hash")
+  resetTokenExpiresAt DateTime? @map("reset_token_expires_at")
 
   couple             Couple?             @relation(fields: [coupleId], references: [id])
   environments       Environment[]

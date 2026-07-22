@@ -8,6 +8,8 @@ import { AuthSession, AuthUser, Partner, SignupPayload } from '../types';
 import {
   login as apiLogin,
   signup as apiSignup,
+  forgotPassword as apiForgotPassword,
+  resetPassword as apiResetPassword,
   getMe,
   setAuthToken,
 } from './api';
@@ -23,6 +25,10 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (payload: SignupPayload) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Demande l'envoi d'un code de réinitialisation ; renvoie le message générique. */
+  requestPasswordReset: (email: string) => Promise<string>;
+  /** Réinitialise le mot de passe via le code et connecte la session. */
+  resetPassword: (email: string, code: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -80,9 +86,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearToken();
   };
 
+  const requestPasswordReset = async (email: string) => {
+    const { message } = await apiForgotPassword(email);
+    return message;
+  };
+
+  const resetPassword = async (email: string, code: string, password: string) => {
+    await persist(await apiResetPassword(email, code, password));
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, partner, inviteCode, loading, signIn, signUp, signOut }}
+      value={{
+        user,
+        partner,
+        inviteCode,
+        loading,
+        signIn,
+        signUp,
+        signOut,
+        requestPasswordReset,
+        resetPassword,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -9,27 +9,38 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../lib/auth-context';
 import { COLORS } from '../lib/theme';
 
-/** Écran de connexion. */
-export default function LoginScreen() {
+/** Écran de réinitialisation : email + code reçu + nouveau mot de passe. */
+export default function ResetPasswordScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
-  const [email, setEmail] = useState('');
+  const { resetPassword } = useAuth();
+  const params = useLocalSearchParams<{ email?: string }>();
+
+  const [email, setEmail] = useState(params.email ?? '');
+  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleSubmit = async () => {
+    if (!email.trim() || !code.trim() || !password) {
+      setError('Email, code et nouveau mot de passe requis');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Le mot de passe doit faire au moins 6 caractères');
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
-      await signIn(email.trim(), password);
+      await resetPassword(email.trim(), code.trim(), password);
       router.replace('/(tabs)/notre-espace');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Connexion impossible');
+      setError(e instanceof Error ? e.message : 'Réinitialisation impossible');
     } finally {
       setLoading(false);
     }
@@ -41,8 +52,10 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.card}>
-        <Text style={styles.logo}>💑 CouplePlanner</Text>
-        <Text style={styles.subtitle}>Vos tâches, à deux.</Text>
+        <Text style={styles.logo}>🔒 Nouveau mot de passe</Text>
+        <Text style={styles.subtitle}>
+          Saisissez le code reçu par email et votre nouveau mot de passe.
+        </Text>
 
         <TextInput
           style={styles.input}
@@ -52,32 +65,40 @@ export default function LoginScreen() {
           placeholderTextColor="#999"
           autoCapitalize="none"
           keyboardType="email-address"
+          editable={!loading}
+        />
+        <TextInput
+          style={[styles.input, styles.codeInput]}
+          value={code}
+          onChangeText={(t) => setCode(t.toUpperCase())}
+          placeholder="Code (ex : A1B2C3D4)"
+          placeholderTextColor="#999"
+          autoCapitalize="characters"
+          autoCorrect={false}
+          editable={!loading}
         />
         <TextInput
           style={styles.input}
           value={password}
           onChangeText={setPassword}
-          placeholder="Mot de passe"
+          placeholder="Nouveau mot de passe"
           placeholderTextColor="#999"
           secureTextEntry
+          editable={!loading}
         />
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+        <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Se connecter</Text>
+            <Text style={styles.buttonText}>Réinitialiser</Text>
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/forgot-password')}>
-          <Text style={styles.link}>Mot de passe oublié ?</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => router.push('/signup')}>
-          <Text style={styles.link}>Pas encore de compte ? Créer un compte</Text>
+        <TouchableOpacity onPress={() => router.replace('/login')}>
+          <Text style={styles.link}>← Retour à la connexion</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -95,7 +116,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: 12,
   },
-  logo: { fontSize: 28, fontWeight: '700', textAlign: 'center' },
+  logo: { fontSize: 24, fontWeight: '700', textAlign: 'center' },
   subtitle: { textAlign: 'center', color: '#888', marginBottom: 8 },
   input: {
     borderWidth: 1,
@@ -105,12 +126,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2C3E50',
   },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    padding: 14,
-    alignItems: 'center',
-  },
+  codeInput: { letterSpacing: 2, textAlign: 'center', fontWeight: '700' },
+  button: { backgroundColor: COLORS.primary, borderRadius: 10, padding: 14, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   error: { color: '#C0392B', textAlign: 'center' },
   link: { textAlign: 'center', color: COLORS.primary, fontWeight: '600', marginTop: 4 },
