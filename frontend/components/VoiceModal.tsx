@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { createTask, voiceAnalyse } from '../lib/api';
 import { useAuth } from '../lib/auth-context';
@@ -58,14 +59,48 @@ export default function VoiceModal({ visible, onClose, onTaskCreated }: Props) {
   const [dateLabel, setDateLabel] = useState<string | null>(null);
   const [dateIso, setDateIso] = useState<string | null>(null);
   const [isAllDay, setIsAllDay] = useState(true);
+  // Sélecteurs de date/heure (pour poser ou corriger l'échéance manuellement,
+  // notamment quand l'IA n'a détecté aucune date).
+  const [showDate, setShowDate] = useState(false);
+  const [showTime, setShowTime] = useState(false);
   // Proposition : soumettre l'activité au partenaire avant qu'elle n'entre à l'agenda.
   const [isProposal, setIsProposal] = useState(false);
+
+  /** Applique le jour choisi à l'échéance (crée l'échéance si elle était absente). */
+  const applyDate = (selected: Date) => {
+    const hadDate = dateIso !== null;
+    const base = hadDate ? new Date(dateIso!) : new Date();
+    base.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
+    if (isAllDay) base.setHours(0, 0, 0, 0);
+    else if (!hadDate) base.setHours(9, 0, 0, 0); // heure par défaut d'un nouveau créneau
+    setDateIso(base.toISOString());
+    setDateLabel(null); // le libellé IA ("ce samedi") ne correspond plus après édition
+  };
+
+  /** Applique l'heure choisie à l'échéance existante. */
+  const applyTime = (selected: Date) => {
+    const base = dateIso ? new Date(dateIso) : new Date();
+    base.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+    setDateIso(base.toISOString());
+  };
+
+  /** Bascule journée entière : ajuste l'heure du créneau en conséquence. */
+  const handleAllDayToggle = (value: boolean) => {
+    setIsAllDay(value);
+    if (!dateIso) return;
+    const d = new Date(dateIso);
+    if (value) d.setHours(0, 0, 0, 0);
+    else if (d.getHours() === 0 && d.getMinutes() === 0) d.setHours(9, 0, 0, 0);
+    setDateIso(d.toISOString());
+  };
 
   const reset = () => {
     speech.stop(); // coupe le micro si une écoute est en cours
     setStep('input');
     setVoiceText('');
     setIsProposal(false);
+    setShowDate(false);
+    setShowTime(false);
     setError(null);
     setLoading(false);
   };
@@ -235,31 +270,72 @@ export default function VoiceModal({ visible, onClose, onTaskCreated }: Props) {
                 </>
               )}
 
-              {/* Date détectée */}
+              {/* Échéance : détectée par l'IA, ajoutable/modifiable à la main */}
               <Text style={styles.label}>Échéance</Text>
-              <View style={styles.dateRow}>
-                <Ionicons name="calendar-outline" size={18} color="#7F8C8D" />
-                <Text style={styles.dateText}>
-                  {dateIso
-                    ? `${dateLabel ?? ''} — ${new Date(dateIso).toLocaleDateString('fr-FR', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                      })}`
-                    : 'Aucune date détectée'}
-                </Text>
-                {dateIso && (
-                  <TouchableOpacity onPress={() => { setDateIso(null); setDateLabel(null); }}>
-                    <Ionicons name="close-circle" size={18} color="#95A5A6" />
-                  </TouchableOpacity>
-                )}
-              </View>
+              {dateIso ? (
+                <>
+                  <View style={styles.dateRow}>
+                    <TouchableOpacity style={styles.dateField} onPress={() => setShowDate(true)}>
+                      <Ionicons name="calendar-outline" size={18} color="#7F8C8D" />
+                      <Text style={styles.dateFieldText}>
+                        {`${dateLabel ? `${dateLabel} — ` : ''}${new Date(dateIso).toLocaleDateString(
+                          'fr-FR',
+                          { weekday: 'long', day: 'numeric', month: 'long' }
+                        )}`}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => { setDateIso(null); setDateLabel(null); }}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#95A5A6" />
+                    </TouchableOpacity>
+                  </View>
 
-              {dateIso && (
-                <View style={styles.switchRow}>
-                  <Text style={styles.label}>Journée entière</Text>
-                  <Switch value={isAllDay} onValueChange={setIsAllDay} />
-                </View>
+                  <View style={styles.switchRow}>
+                    <Text style={styles.label}>Journée entière</Text>
+                    <Switch value={isAllDay} onValueChange={handleAllDayToggle} />
+                  </View>
+
+                  {!isAllDay && (
+                    <TouchableOpacity style={styles.dateField} onPress={() => setShowTime(true)}>
+                      <Ionicons name="time-outline" size={18} color="#7F8C8D" />
+                      <Text style={styles.dateFieldText}>
+                        {new Date(dateIso).toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              ) : (
+                <TouchableOpacity style={styles.addDateBtn} onPress={() => setShowDate(true)}>
+                  <Ionicons name="add-circle-outline" size={18} color={COLORS.primary} />
+                  <Text style={styles.addDateText}>Ajouter une date</Text>
+                </TouchableOpacity>
+              )}
+
+              {showDate && (
+                <DateTimePicker
+                  value={dateIso ? new Date(dateIso) : new Date()}
+                  mode="date"
+                  onValueChange={(_event, selected) => {
+                    setShowDate(false);
+                    applyDate(selected);
+                  }}
+                  onDismiss={() => setShowDate(false)}
+                />
+              )}
+              {showTime && (
+                <DateTimePicker
+                  value={dateIso ? new Date(dateIso) : new Date()}
+                  mode="time"
+                  onValueChange={(_event, selected) => {
+                    setShowTime(false);
+                    applyTime(selected);
+                  }}
+                  onDismiss={() => setShowTime(false)}
+                />
               )}
 
               {error && <Text style={styles.error}>{error}</Text>}
@@ -342,7 +418,28 @@ const styles = StyleSheet.create({
   segmentText: { fontSize: 13, color: '#2C3E50' },
   segmentTextActive: { color: '#fff', fontWeight: '600' },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
-  dateText: { flex: 1, color: '#2C3E50' },
+  dateField: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 10,
+    padding: 12,
+  },
+  dateFieldText: { flex: 1, fontSize: 15, color: '#2C3E50', textTransform: 'capitalize' },
+  addDateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: COLORS.primaryBorder,
+    borderRadius: 10,
+    paddingVertical: 12,
+  },
+  addDateText: { fontSize: 15, fontWeight: '600', color: COLORS.primary },
   switchRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
