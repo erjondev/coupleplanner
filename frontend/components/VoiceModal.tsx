@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createTask, voiceAnalyse } from '../lib/api';
+import { useAuth } from '../lib/auth-context';
 import { notify } from '../lib/notify';
 import { COLORS } from '../lib/theme';
 import { useSpeechRecognition } from '../lib/useSpeechRecognition';
@@ -42,6 +43,7 @@ interface Props {
 }
 
 export default function VoiceModal({ visible, onClose, onTaskCreated }: Props) {
+  const { partner } = useAuth();
   const [step, setStep] = useState<'input' | 'review'>('input');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,11 +58,14 @@ export default function VoiceModal({ visible, onClose, onTaskCreated }: Props) {
   const [dateLabel, setDateLabel] = useState<string | null>(null);
   const [dateIso, setDateIso] = useState<string | null>(null);
   const [isAllDay, setIsAllDay] = useState(true);
+  // Proposition : soumettre l'activité au partenaire avant qu'elle n'entre à l'agenda.
+  const [isProposal, setIsProposal] = useState(false);
 
   const reset = () => {
     speech.stop(); // coupe le micro si une écoute est en cours
     setStep('input');
     setVoiceText('');
+    setIsProposal(false);
     setError(null);
     setLoading(false);
   };
@@ -101,8 +106,9 @@ export default function VoiceModal({ visible, onClose, onTaskCreated }: Props) {
     try {
       const result: CreateTaskResponse = await createTask({
         title: title.trim(),
-        environment_type: space === 'PRIVATE' ? 'PRIVATE' : 'SHARED',
-        assign_to_partner: space === 'SHARED_PARTNER',
+        environment_type: isProposal || space !== 'PRIVATE' ? 'SHARED' : 'PRIVATE',
+        assign_to_partner: !isProposal && space === 'SHARED_PARTNER',
+        is_proposal: isProposal,
         start_datetime: dateIso,
         is_all_day: isAllDay,
       });
@@ -112,7 +118,9 @@ export default function VoiceModal({ visible, onClose, onTaskCreated }: Props) {
 
       // Gestion de l'alerte de conflit d'agenda (message générique, sans
       // divulguer le contenu de la tâche privée du partenaire)
-      if (result.has_conflict) {
+      if (isProposal) {
+        notify('📨 Proposition envoyée', result.message);
+      } else if (result.has_conflict) {
         notify('⚠️ Conflit d’agenda', result.message);
       } else {
         notify('✅ Tâche créée', `« ${result.task.title} » a été ajoutée.`);
@@ -187,26 +195,45 @@ export default function VoiceModal({ visible, onClose, onTaskCreated }: Props) {
               <Text style={styles.label}>Titre</Text>
               <TextInput style={styles.input} value={title} onChangeText={setTitle} />
 
-              {/* Espace cible — modifiable */}
-              <Text style={styles.label}>Espace</Text>
-              <View style={styles.segments}>
-                {SPACE_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[styles.segment, space === opt.value && styles.segmentActive]}
-                    onPress={() => setSpace(opt.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        space === opt.value && styles.segmentTextActive,
-                      ]}
-                    >
-                      {opt.label}
+              {/* Espace cible — modifiable (masqué si proposition) */}
+              {!isProposal && (
+                <>
+                  <Text style={styles.label}>Espace</Text>
+                  <View style={styles.segments}>
+                    {SPACE_OPTIONS.map((opt) => (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[styles.segment, space === opt.value && styles.segmentActive]}
+                        onPress={() => setSpace(opt.value)}
+                      >
+                        <Text
+                          style={[
+                            styles.segmentText,
+                            space === opt.value && styles.segmentTextActive,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {/* Proposition : soumettre au partenaire (seulement en couple) */}
+              {partner && (
+                <>
+                  <View style={styles.switchRow}>
+                    <Text style={styles.label}>Proposer à {partner.name}</Text>
+                    <Switch value={isProposal} onValueChange={setIsProposal} />
+                  </View>
+                  {isProposal && (
+                    <Text style={styles.hint}>
+                      L'activité rejoindra l'agenda une fois validée par {partner.name}.
                     </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                  )}
+                </>
+              )}
 
               {/* Date détectée */}
               <Text style={styles.label}>Échéance</Text>
@@ -279,6 +306,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: '700', color: '#2C3E50' },
   subtitle: { color: '#7F8C8D', marginBottom: 8 },
+  hint: { fontSize: 12, color: '#7F8C8D', fontStyle: 'italic', marginTop: 2 },
   label: { fontSize: 13, fontWeight: '600', color: '#2C3E50', marginTop: 6 },
   input: {
     borderWidth: 1,

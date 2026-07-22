@@ -64,6 +64,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="propositions"
+        options={{
+          title: 'Propositions',
+          tabBarIcon: ({ color, size }) => <Ionicons name="gift" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="agenda"
         options={{
           title: 'Agenda',

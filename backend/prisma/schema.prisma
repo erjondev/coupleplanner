@@ -30,6 +30,19 @@ enum TaskStatus {
   DONE
 }
 
+// Statut de « proposition » d'une tâche : une activité proposée par un membre
+// au partenaire n'apparaît dans l'agenda/les espaces qu'une fois ACCEPTED.
+//   NONE     -> tâche normale (pas une proposition)
+//   PENDING  -> proposée, en attente de validation du partenaire
+//   ACCEPTED -> validée : devient une tâche commune visible partout
+//   DECLINED -> refusée par le partenaire (visible seulement de l'émetteur)
+enum ProposalStatus {
+  NONE
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 enum DeviceType {
   IOS
   ANDROID
@@ -95,6 +108,9 @@ model Task {
   isAllDay      Boolean    @default(false) @map("is_all_day")
   createdBy     String     @map("created_by")
   assignedTo    String?    @map("assigned_to")
+  // Proposition d'activité au partenaire (cf. enum ProposalStatus). Par défaut
+  // NONE : les tâches ordinaires ne sont pas des propositions.
+  proposalStatus ProposalStatus @default(NONE) @map("proposal_status")
   createdAt     DateTime   @default(now()) @map("created_at")
 
   environment Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
