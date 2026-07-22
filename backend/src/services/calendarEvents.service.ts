@@ -48,6 +48,9 @@ export async function buildCoupleCalendarEvents(
       environment: { coupleId },
       startDatetime: { not: null, lte: to },
       OR: [{ endDatetime: { gte: from } }, { endDatetime: null, startDatetime: { gte: from } }],
+      // Une proposition en attente/refusée n'est pas encore un engagement :
+      // elle n'apparaît dans l'agenda qu'une fois acceptée.
+      NOT: { proposalStatus: { in: ['PENDING', 'DECLINED'] } },
     },
     include: { environment: { select: { type: true, userId: true } } },
     orderBy: { startDatetime: 'asc' },

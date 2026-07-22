@@ -3,6 +3,9 @@
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 export type EnvironmentType = 'PRIVATE' | 'SHARED';
 
+/** Statut de « proposition » d'une activité au partenaire (cf. backend). */
+export type ProposalStatus = 'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED';
+
 /** Les 3 espaces de l'application. */
 export type Space = 'mine' | 'ours' | 'partner';
 
@@ -15,7 +18,10 @@ export interface Task {
   endDatetime: string | null;
   isAllDay: boolean;
   assignedTo: string | null;
+  proposalStatus?: ProposalStatus;
   assignee?: { id: string; name: string } | null;
+  /** Émetteur de la proposition (présent dans les propositions reçues). */
+  creator?: { id: string; name: string } | null;
 }
 
 export interface VoiceAnalysis {
@@ -79,9 +85,19 @@ export interface CreateTaskPayload {
   description?: string;
   environment_type: EnvironmentType;
   assign_to_partner?: boolean;
+  /** Crée la tâche comme proposition en attente de validation du partenaire. */
+  is_proposal?: boolean;
   start_datetime?: string | null;
   end_datetime?: string | null;
   is_all_day?: boolean;
+}
+
+/** Réponse de GET /api/tasks/proposals. */
+export interface ProposalsResponse {
+  /** Propositions reçues à accepter/refuser. */
+  received: Task[];
+  /** Propositions que j'ai émises (en attente ou refusées). */
+  sent: Task[];
 }
 
 export interface CreateTaskResponse {

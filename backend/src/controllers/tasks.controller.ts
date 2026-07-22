@@ -7,6 +7,13 @@ import { analyseVoiceTextAI } from '../services/voiceAnalyseAI.service';
 const CONFLICT_MESSAGE = 'Le partenaire a déjà un engagement privé sur ce créneau';
 const READONLY_MESSAGE = 'Cette tâche est assignée à votre partenaire : lecture seule';
 
+// Statuts de proposition qui masquent la tâche des espaces/agenda : tant qu'elle
+// n'est pas acceptée (PENDING) ou qu'elle a été refusée (DECLINED), elle ne vit
+// que dans l'onglet « Propositions ».
+const HIDDEN_PROPOSAL_STATUSES: Prisma.EnumProposalStatusFilter = {
+  in: ['PENDING', 'DECLINED'],
+};
+
 /**
  * Une tâche n'est modifiable/supprimable que si elle m'est assignée ou n'est
  * assignée à personne (tâche commune). Une tâche assignée au partenaire est en
@@ -51,6 +58,10 @@ export async function listTasks(req: Request, res: Response) {
       break;
   }
 
+  // Les propositions en attente/refusées ne figurent dans aucun espace : elles
+  // sont réservées à l'onglet « Propositions » jusqu'à validation.
+  where.NOT = { proposalStatus: HIDDEN_PROPOSAL_STATUSES };
+
   const tasks = await prisma.task.findMany({
     where,
     orderBy: [{ startDatetime: 'asc' }, { createdAt: 'desc' }],
@@ -79,6 +90,7 @@ export async function createTask(req: Request, res: Response) {
     description,
     environment_type: environmentType,
     assign_to_partner: assignToPartner,
+    is_proposal: isProposalRaw,
     start_datetime: startRaw,
     end_datetime: endRaw,
     is_all_day: isAllDay,
@@ -91,10 +103,23 @@ export async function createTask(req: Request, res: Response) {
     return res.status(400).json({ error: 'environment_type doit être PRIVATE ou SHARED' });
   }
 
+  // Une proposition est toujours une activité commune (SHARED), en attente de
+  // validation du partenaire. On force donc l'espace commun quel que soit le
+  // champ reçu, et on refuse la proposition s'il n'y a pas de partenaire.
+  const isProposal = Boolean(isProposalRaw);
+  const effectiveType = isProposal ? 'SHARED' : environmentType;
+
+  if (isProposal) {
+    const partnerId = await getPartnerId(userId, coupleId);
+    if (!partnerId) {
+      return res.status(400).json({ error: 'Aucun partenaire à qui proposer cette activité' });
+    }
+  }
+
   // Résolution de l'environnement cible
   const environment = await prisma.environment.findFirst({
     where:
-      environmentType === 'PRIVATE'
+      effectiveType === 'PRIVATE'
         ? { coupleId, type: 'PRIVATE', userId }
         : { coupleId, type: 'SHARED' },
   });
@@ -117,11 +142,13 @@ export async function createTask(req: Request, res: Response) {
 
   // --- Détection de conflit (exigence métier) ---
   let hasConflict = false;
-  if (environmentType === 'SHARED' && start && end) {
+  if (effectiveType === 'SHARED' && start && end) {
     hasConflict = await hasPartnerPrivateConflict(userId, coupleId, start, end);
   }
 
-  const partnerId = assignToPartner ? await getPartnerId(userId, coupleId) : null;
+  // Une proposition reste commune (assignedTo = null) : une fois acceptée, elle
+  // devient une tâche de « Notre Espace ».
+  const partnerId = !isProposal && assignToPartner ? await getPartnerId(userId, coupleId) : null;
 
   const task = await prisma.task.create({
     data: {
@@ -132,7 +159,8 @@ export async function createTask(req: Request, res: Response) {
       endDatetime: end,
       isAllDay: Boolean(isAllDay),
       createdBy: userId,
-      assignedTo: environmentType === 'PRIVATE' ? userId : partnerId,
+      assignedTo: effectiveType === 'PRIVATE' ? userId : partnerId,
+      proposalStatus: isProposal ? 'PENDING' : 'NONE',
     },
     include: { assignee: { select: { id: true, name: true } } },
   });
@@ -140,7 +168,8 @@ export async function createTask(req: Request, res: Response) {
   return res.status(201).json({
     task,
     has_conflict: hasConflict,
-    ...(hasConflict && { message: CONFLICT_MESSAGE }),
+    ...(isProposal && { message: 'Proposition envoyée à votre partenaire' }),
+    ...(!isProposal && hasConflict && { message: CONFLICT_MESSAGE }),
   });
 }
 
@@ -258,6 +287,117 @@ export async function deleteTask(req: Request, res: Response) {
 
   await prisma.task.delete({ where: { id } });
   return res.status(204).send();
+}
+
+/**
+ * GET /api/tasks/proposals
+ * Renvoie les propositions d'activité du couple, séparées en deux listes :
+ *  - received : propositions PENDING dont je ne suis PAS l'émetteur
+ *               (à accepter/refuser).
+ *  - sent     : propositions que J'AI émises, encore en attente (PENDING) ou
+ *               refusées par le partenaire (DECLINED, pour feedback).
+ */
+export async function listProposals(req: Request, res: Response) {
+  const { userId, coupleId } = req.auth!;
+
+  const [received, sent] = await Promise.all([
+    prisma.task.findMany({
+      where: {
+        environment: { coupleId },
+        proposalStatus: 'PENDING',
+        createdBy: { not: userId },
+      },
+      orderBy: [{ startDatetime: 'asc' }, { createdAt: 'desc' }],
+      include: { creator: { select: { id: true, name: true } } },
+    }),
+    prisma.task.findMany({
+      where: {
+        environment: { coupleId },
+        createdBy: userId,
+        proposalStatus: { in: ['PENDING', 'DECLINED'] },
+      },
+      orderBy: [{ startDatetime: 'asc' }, { createdAt: 'desc' }],
+    }),
+  ]);
+
+  return res.json({ received, sent });
+}
+
+/**
+ * Charge une proposition PENDING que l'utilisateur courant est habilité à
+ * traiter (accepter/refuser) : elle doit appartenir au couple, être en attente,
+ * et NE PAS avoir été émise par lui-même (on ne valide pas sa propre proposition).
+ */
+async function findPendingProposalForRecipient(id: string, userId: string, coupleId: string) {
+  return prisma.task.findFirst({
+    where: {
+      id,
+      environment: { coupleId },
+      proposalStatus: 'PENDING',
+      createdBy: { not: userId },
+    },
+  });
+}
+
+/**
+ * POST /api/tasks/:id/proposal/accept
+ * Le partenaire destinataire valide la proposition : elle devient une tâche
+ * commune ordinaire (ACCEPTED) et réapparaît dans l'agenda / « Notre Espace ».
+ * On relance la détection de conflit à l'acceptation.
+ */
+export async function acceptProposal(req: Request, res: Response) {
+  const { userId, coupleId } = req.auth!;
+  const { id } = req.params;
+
+  const proposal = await findPendingProposalForRecipient(id, userId, coupleId);
+  if (!proposal) {
+    return res.status(404).json({ error: 'Proposition introuvable ou déjà traitée' });
+  }
+
+  let hasConflict = false;
+  if (proposal.startDatetime && proposal.endDatetime) {
+    hasConflict = await hasPartnerPrivateConflict(
+      userId,
+      coupleId,
+      proposal.startDatetime,
+      proposal.endDatetime
+    );
+  }
+
+  const task = await prisma.task.update({
+    where: { id },
+    data: { proposalStatus: 'ACCEPTED' },
+    include: { assignee: { select: { id: true, name: true } } },
+  });
+
+  return res.json({
+    task,
+    has_conflict: hasConflict,
+    ...(hasConflict && { message: CONFLICT_MESSAGE }),
+  });
+}
+
+/**
+ * POST /api/tasks/:id/proposal/decline
+ * Le partenaire destinataire refuse : la proposition passe en DECLINED. Elle
+ * disparaît de sa vue mais reste visible de l'émetteur (feedback), qui pourra
+ * la supprimer via DELETE /api/tasks/:id.
+ */
+export async function declineProposal(req: Request, res: Response) {
+  const { userId, coupleId } = req.auth!;
+  const { id } = req.params;
+
+  const proposal = await findPendingProposalForRecipient(id, userId, coupleId);
+  if (!proposal) {
+    return res.status(404).json({ error: 'Proposition introuvable ou déjà traitée' });
+  }
+
+  const task = await prisma.task.update({
+    where: { id },
+    data: { proposalStatus: 'DECLINED' },
+  });
+
+  return res.json({ task });
 }
 
 /**

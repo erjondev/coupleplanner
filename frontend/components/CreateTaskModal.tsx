@@ -16,6 +16,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { createTask } from '../lib/api';
+import { useAuth } from '../lib/auth-context';
 import { notify } from '../lib/notify';
 import { COLORS } from '../lib/theme';
 
@@ -35,8 +36,12 @@ interface Props {
 }
 
 export default function CreateTaskModal({ day, onClose, onCreated }: Props) {
+  const { partner } = useAuth();
   const [title, setTitle] = useState('');
   const [space, setSpace] = useState<SpaceChoice>('SHARED');
+  // Proposition : l'activité est soumise au partenaire et n'entre dans l'agenda
+  // qu'après validation. Force l'espace commun (SHARED).
+  const [isProposal, setIsProposal] = useState(false);
   const [isAllDay, setIsAllDay] = useState(true);
   const [time, setTime] = useState({ h: 9, m: 0 });
   const [showTime, setShowTime] = useState(false);
@@ -47,6 +52,7 @@ export default function CreateTaskModal({ day, onClose, onCreated }: Props) {
     if (day) {
       setTitle('');
       setSpace('SHARED');
+      setIsProposal(false);
       setIsAllDay(true);
       setTime({ h: 9, m: 0 });
       setShowTime(false);
@@ -69,14 +75,19 @@ export default function CreateTaskModal({ day, onClose, onCreated }: Props) {
     try {
       const result = await createTask({
         title: title.trim(),
-        environment_type: space === 'PRIVATE' ? 'PRIVATE' : 'SHARED',
-        assign_to_partner: space === 'SHARED_PARTNER',
+        environment_type: isProposal || space !== 'PRIVATE' ? 'SHARED' : 'PRIVATE',
+        assign_to_partner: !isProposal && space === 'SHARED_PARTNER',
+        is_proposal: isProposal,
         start_datetime: start.toISOString(),
         is_all_day: isAllDay,
       });
       onClose();
       onCreated();
-      if (result.has_conflict) notify('⚠️ Conflit d’agenda', result.message);
+      if (isProposal) {
+        notify('📨 Proposition envoyée', result.message);
+      } else if (result.has_conflict) {
+        notify('⚠️ Conflit d’agenda', result.message);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Échec de la création');
       setLoading(false);
@@ -112,22 +123,41 @@ export default function CreateTaskModal({ day, onClose, onCreated }: Props) {
             autoFocus
           />
 
-          <Text style={styles.label}>Espace</Text>
-          <View style={styles.segments}>
-            {SPACE_OPTIONS.map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[styles.segment, space === opt.value && styles.segmentActive]}
-                onPress={() => setSpace(opt.value)}
-              >
-                <Text
-                  style={[styles.segmentText, space === opt.value && styles.segmentTextActive]}
-                >
-                  {opt.label}
+          {!isProposal && (
+            <>
+              <Text style={styles.label}>Espace</Text>
+              <View style={styles.segments}>
+                {SPACE_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.segment, space === opt.value && styles.segmentActive]}
+                    onPress={() => setSpace(opt.value)}
+                  >
+                    <Text
+                      style={[styles.segmentText, space === opt.value && styles.segmentTextActive]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* Proposition : soumettre l'activité au partenaire (seulement en couple) */}
+          {partner && (
+            <>
+              <View style={styles.switchRow}>
+                <Text style={styles.label}>Proposer à {partner.name}</Text>
+                <Switch value={isProposal} onValueChange={setIsProposal} />
+              </View>
+              {isProposal && (
+                <Text style={styles.hint}>
+                  L'activité rejoindra l'agenda une fois validée par {partner.name}.
                 </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+              )}
+            </>
+          )}
 
           <View style={styles.switchRow}>
             <Text style={styles.label}>Journée entière</Text>
@@ -201,6 +231,7 @@ const styles = StyleSheet.create({
   segmentText: { fontSize: 13, color: '#2C3E50' },
   segmentTextActive: { color: '#fff', fontWeight: '600' },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  hint: { fontSize: 12, color: '#7F8C8D', fontStyle: 'italic', marginTop: 2 },
   dateField: {
     flexDirection: 'row',
     alignItems: 'center',

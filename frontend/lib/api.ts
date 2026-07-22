@@ -8,6 +8,7 @@ import {
   CalendarEvent,
   CreateTaskPayload,
   CreateTaskResponse,
+  ProposalsResponse,
   SignupPayload,
   Space,
   Task,
@@ -95,6 +96,23 @@ export function updateTask(id: string, payload: UpdateTaskPayload) {
 /** Suppression d'une tâche. */
 export function deleteTask(id: string) {
   return request<void>(`/api/tasks/${id}`, { method: 'DELETE' });
+}
+
+// --- Propositions d'activité ---
+
+/** Propositions reçues (à valider) et émises (en attente / refusées). */
+export function getProposals() {
+  return request<ProposalsResponse>('/api/tasks/proposals');
+}
+
+/** Accepte une proposition reçue : elle devient une tâche commune. */
+export function acceptProposal(id: string) {
+  return request<CreateTaskResponse>(`/api/tasks/${id}/proposal/accept`, { method: 'POST' });
+}
+
+/** Refuse une proposition reçue. */
+export function declineProposal(id: string) {
+  return request<{ task: Task }>(`/api/tasks/${id}/proposal/decline`, { method: 'POST' });
 }
 
 /** Événements du calendrier sur une fenêtre [from, to] (ISO). */
