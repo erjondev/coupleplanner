@@ -14,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker from './PlatformDateTimePicker';
 import { Ionicons } from '@expo/vector-icons';
 import { updateTask } from '../lib/api';
 import { notify } from '../lib/notify';
