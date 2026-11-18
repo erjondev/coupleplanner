@@ -5,10 +5,11 @@
  *  - Quelques tâches, dont une tâche PRIVÉE de Bob samedi prochain (10h-12h)
  *    pour tester la détection de conflit lors de la création d'une tâche SHARED.
  */
-import { PrismaClient } from '@prisma/client';
+import 'dotenv/config';
 import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
+// Instance partagée avec l'app : choisit automatiquement le client dev (SQLite)
+// ou prod (PostgreSQL) selon DATABASE_URL (voir src/lib/prisma.ts).
+import { prisma } from '../src/lib/prisma';
 
 /** Retourne le prochain jour de la semaine demandé (0 = dimanche ... 6 = samedi). */
 function nextWeekday(day: number): Date {

@@ -26,7 +26,7 @@ alwaysdata permet plusieurs sites sur le même domaine avec des chemins différe
 
 - Accès SSH activé : **Panel alwaysdata > Remote access > SSH** → activer, définir un mot de passe ou une clé SSH.
   Doc : https://help.alwaysdata.com/en/web-hosting/remote-access/ssh/
-- En local : `yarn`, `docker` (optionnel, pour vérifier avant d'envoyer), `rsync` (préinstallé sur macOS).
+- En local : `yarn`, `rsync` (préinstallé sur macOS). **Aucun Docker requis** : le dev local tourne sur SQLite embarquée (`backend/prisma/dev/dev.db`), la prod seule utilise la base PostgreSQL alwaysdata ci-dessous.
 
 ---
 

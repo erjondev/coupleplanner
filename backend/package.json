@@ -7,10 +7,12 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "postinstall": "prisma generate",
-    "prisma:generate": "prisma generate",
+    "postinstall": "prisma generate && prisma generate --schema=prisma/dev/schema.prisma",
+    "prisma:generate": "prisma generate && prisma generate --schema=prisma/dev/schema.prisma",
     "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:migrate:dev-db": "prisma migrate dev --schema=prisma/dev/schema.prisma --name dev_sqlite",
     "prisma:deploy": "prisma migrate deploy",
+    "prisma:reset-dev": "prisma migrate reset --schema=prisma/dev/schema.prisma --force && yarn seed",
     "seed": "ts-node prisma/seed.ts"
   },
   "prisma": {

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
-import { Prisma, TaskStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { isTaskStatus } from '../lib/enums';
 import { hasPartnerPrivateConflict } from '../services/conflict.service';
 import { analyseVoiceTextAI } from '../services/voiceAnalyseAI.service';
 
@@ -9,9 +10,10 @@ const READONLY_MESSAGE = 'Cette tâche est assignée à votre partenaire : lectu
 
 // Statuts de proposition qui masquent la tâche des espaces/agenda : tant qu'elle
 // n'est pas acceptée (PENDING) ou qu'elle a été refusée (DECLINED), elle ne vit
-// que dans l'onglet « Propositions ».
-const HIDDEN_PROPOSAL_STATUSES: Prisma.EnumProposalStatusFilter = {
-  in: ['PENDING', 'DECLINED'],
+// que dans l'onglet « Propositions ». Typé en littéraux (et non Prisma.Enum…)
+// pour rester compatible enum Postgres (prod) et String (dev SQLite).
+const HIDDEN_PROPOSAL_STATUSES = {
+  in: ['PENDING', 'DECLINED'] as ('PENDING' | 'DECLINED')[],
 };
 
 /**
@@ -206,7 +208,7 @@ export async function updateTask(req: Request, res: Response) {
   const data: Prisma.TaskUncheckedUpdateInput = {};
 
   if (status !== undefined) {
-    if (!Object.values(TaskStatus).includes(status)) {
+    if (!isTaskStatus(status)) {
       return res.status(400).json({ error: 'Statut invalide (TODO, IN_PROGRESS, DONE)' });
     }
     data.status = status;

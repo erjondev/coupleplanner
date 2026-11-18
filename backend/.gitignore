@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 coupleplanner-backend-deploy.tar.gz
+# Base SQLite de dev local + client Prisma généré depuis prisma/dev/schema.prisma
+prisma/dev/dev.db
+prisma/dev/dev.db-journal
+prisma/dev-client/

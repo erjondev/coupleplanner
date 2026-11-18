@@ -12,7 +12,7 @@ CouplePlanner is a task-management app for couples built around a **"3 spaces" c
 | **Notre Espace** | Shared couple tasks (`Environment.type = SHARED`) | Both |
 | **Son Espace** | Shared tasks assigned to the partner | Both |
 
-Stack: Expo (React Native + Expo Router, iOS/Android/Web) for `frontend/`; Node.js + Express + TypeScript for `backend/`; PostgreSQL + Prisma.
+Stack: Expo (React Native + Expo Router, iOS/Android/Web) for `frontend/`; Node.js + Express + TypeScript for `backend/`; Prisma — SQLite (fichier local, dev) / PostgreSQL (alwaysdata, prod).
 
 UI copy, comments, and commit-adjacent docs are in French — match that convention when editing existing files.
 
@@ -21,8 +21,11 @@ UI copy, comments, and commit-adjacent docs are in French — match that convent
 ### Backend (`cd backend`)
 - `yarn dev` — run the API with hot reload (`ts-node-dev`) on `http://localhost:3000`
 - `yarn build` / `yarn start` — compile to `dist/` and run the compiled server
-- `yarn prisma:generate` — regenerate the Prisma client after editing `schema.prisma`
-- `yarn prisma:migrate` — create/apply a dev migration (`prisma migrate dev`)
+- `yarn prisma:generate` — regenerate BOTH Prisma clients (prod Postgres + dev SQLite)
+- `yarn prisma:migrate` — create/apply a migration on the **prod** schema (`prisma/schema.prisma`, Postgres)
+- `yarn prisma:migrate:dev-db` — create/apply a migration on the **dev** schema (`prisma/dev/schema.prisma`, SQLite)
+- `yarn prisma:reset-dev` — wipe + recreate the local SQLite db and reseed it
+- `yarn prisma:deploy` — apply migrations to prod (never `migrate dev` in prod)
 - `yarn seed` — seed demo data (Alice & Bob accounts + sample tasks)
 - No lint or test scripts are configured in this repo; use `npx tsc --noEmit` to typecheck.
 
@@ -33,10 +36,8 @@ UI copy, comments, and commit-adjacent docs are in French — match that convent
 - `EXPO_PUBLIC_API_URL=http://<lan-ip>:3000 yarn expo start` — point the app at the backend when testing on a physical device
 - No lint or test scripts are configured; use `npx tsc --noEmit` to typecheck.
 
-### Local database
-```bash
-docker run --name coupleplanner-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=coupleplanner -p 5432:5432 -d postgres:16
-```
+### Local database (dev)
+No server to run: dev uses an embedded **SQLite file** at `backend/prisma/dev/dev.db` (created by `yarn prisma:migrate:dev-db`, wiped+reseeded by `yarn prisma:reset-dev`). Default `DATABASE_URL` in `.env` is `file:./dev.db`. Production on alwaysdata stays on PostgreSQL (see `DEPLOY.md`) — the app picks the right Prisma client automatically from `DATABASE_URL` (`src/lib/prisma.ts`), via the dual schema `prisma/schema.prisma` (prod, native enums) / `prisma/dev/schema.prisma` (dev, enums as `String`; valid values live in `src/lib/enums.ts`).
 
 ### Backend env (`backend/.env`, see `.env.example`)
 - `DATABASE_URL`, `JWT_SECRET`, `PORT`
@@ -45,7 +46,7 @@ docker run --name coupleplanner-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=
 
 ## Architecture
 
-### Data model (`backend/prisma/schema.prisma`)
+### Data model (`backend/prisma/schema.prisma` for prod / `backend/prisma/dev/schema.prisma` for dev-local SQLite)
 `Couple` 1—N `User`, and `Couple` 1—N `Environment`. An `Environment` is either `SHARED` (`userId = null`, one per couple) or `PRIVATE` (`userId` set, one per user). Every `Task` belongs to exactly one `Environment` — the space a task lives in is entirely determined by which environment it's attached to, not by a flag on the task itself. `Task.assignedTo` is used within a `SHARED` environment to distinguish "Notre Espace" (any shared task) from "Son Espace" (shared tasks assigned to the partner).
 
 Couples are linked via `Couple.inviteCode`: the first signup creates the couple (+ its `SHARED` environment + creator's `PRIVATE` environment); a second signup with that code joins the couple (+ creates their own `PRIVATE` environment) and is capped at 2 members (`auth.controller.ts`).

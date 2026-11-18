@@ -8,7 +8,7 @@ Application web/mobile de gestion de tâches pour couples, basée sur le concept
 | **Notre Espace** | Tâches communes du couple (environnement `SHARED`) | Les deux |
 | **Son Espace** | Tâches communes **assignées au partenaire** | Les deux |
 
-**Stack** : Expo (React Native + Expo Router, iOS/Android/Web) · Node.js + Express + TypeScript · PostgreSQL + Prisma.
+**Stack** : Expo (React Native + Expo Router, iOS/Android/Web) · Node.js + Express + TypeScript · Prisma (SQLite en dev local, PostgreSQL en prod).
 
 ## Arborescence
 
@@ -16,7 +16,8 @@ Application web/mobile de gestion de tâches pour couples, basée sur le concept
 CouplePlanner/
 ├── backend/
 │   ├── prisma/
-│   │   ├── schema.prisma          # Modèle de données (Users, Couples, Environments, Tasks, Notification_Tokens)
+│   │   ├── schema.prisma          # Modèle de données PROD (PostgreSQL, enums natifs)
+│   │   ├── dev/schema.prisma      # Modèle DEV local (SQLite fichier, enums en String)
 │   │   └── seed.ts                # Données de démo (Alice & Bob)
 │   └── src/
 │       ├── server.ts              # Point d'entrée
@@ -44,25 +45,25 @@ CouplePlanner/
 
 ## Démarrage local
 
-### 1. Base de données PostgreSQL
+### 1. Base de données
 
-```bash
-docker run --name coupleplanner-db \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=coupleplanner \
-  -p 5432:5432 -d postgres:16
-```
+**Aucune à lancer** : en dev local, la base est un simple fichier **SQLite** (`backend/prisma/dev/dev.db`), créé automatiquement. Plus besoin de Docker/PostgreSQL.
+
+(La production sur alwaysdata reste sur PostgreSQL — voir `DEPLOY.md`.)
 
 ### 2. Backend
 
 ```bash
 cd backend
-cp .env.example .env          # adapter DATABASE_URL si besoin
-yarn install
-yarn prisma migrate dev --name init   # crée les tables + génère le client
+cp .env.example .env          # DATABASE_URL="file:./dev.db" par défaut (SQLite)
+yarn install                  # génère aussi le client Prisma dev (SQLite)
+yarn prisma:migrate:dev-db    # crée le fichier SQLite + applique le schéma dev
 yarn seed                     # comptes de démo + tâches
 yarn dev                      # API sur http://localhost:3000
 ```
+
+> Pour repartir d'une base vierge en dev : `yarn prisma:reset-dev` (reset SQLite + seed).
+> Schéma modifié ? `yarn prisma:migrate:dev-db` régénère la migration SQLite.
 
 ### 3. Frontend
 

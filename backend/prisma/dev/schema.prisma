@@ -1,0 +1,111 @@
+// Schéma Prisma pour le DÉVELOPPEMENT LOCAL uniquement (SQLite, fichier dev.db).
+//
+// Pourquoi un schéma séparé ?
+//  - SQLite ne supporte pas les enums Prisma : les 4 enums du schéma de prod
+//    (EnvironmentType, TaskStatus, ProposalStatus, DeviceType) deviennent ici
+//    de simples String. Les valeurs possibles sont tenues à jour côté code
+//    dans src/lib/enums.ts (constantes partagées), pas dans le schéma.
+//  - La PRODUCTION (alwaysdata) reste sur PostgreSQL via ../schema.prisma :
+//    on ne touche ni à ce schéma ni à ses migrations.
+//
+// Le client généré depuis ce schéma sort dans prisma/dev-client (output ci-dessous)
+// pour ne pas écraser le client de prod (@prisma/client).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../dev-client"
+  // Dev local uniquement : le binaire natif de la machine suffit.
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Couple {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now()) @map("created_at")
+  inviteCode String?  @unique @map("invite_code")
+
+  users        User[]
+  environments Environment[]
+
+  @@map("couples")
+}
+
+model User {
+  id           String  @id @default(uuid())
+  email        String  @unique
+  passwordHash String  @map("password_hash")
+  name         String
+  coupleId     String? @map("couple_id")
+  // Jeton secret d'abonnement au flux ICS (URL privée collée dans Google/Apple
+  // Agenda). Sa présence dans l'URL EST le contrôle d'accès. Régénérable.
+  calendarFeedToken String? @unique @map("calendar_feed_token")
+  // Réinitialisation de mot de passe : hash SHA-256 du code envoyé par email
+  // + son expiration. Effacés après usage.
+  resetTokenHash      String?   @map("reset_token_hash")
+  resetTokenExpiresAt DateTime? @map("reset_token_expires_at")
+
+  couple             Couple?             @relation(fields: [coupleId], references: [id])
+  environments       Environment[]
+  createdTasks       Task[]              @relation("TaskCreatedBy")
+  assignedTasks      Task[]              @relation("TaskAssignedTo")
+  notificationTokens NotificationToken[]
+
+  @@map("users")
+}
+
+model Environment {
+  id       String  @id @default(uuid())
+  coupleId String  @map("couple_id")
+  // null => espace commun du couple (SHARED)
+  userId   String? @map("user_id")
+  // 'PRIVATE' | 'SHARED' (String car SQLite ne supporte pas les enums Prisma —
+  // cf. src/lib/enums.ts pour les valeurs valides)
+  type     String
+
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+  tasks  Task[]
+
+  @@map("environments")
+}
+
+model Task {
+  id            String    @id @default(uuid())
+  environmentId String    @map("environment_id")
+  title         String
+  description   String?
+  // 'TODO' | 'IN_PROGRESS' | 'DONE' (String, cf. enums.ts)
+  status        String    @default("TODO")
+  startDatetime DateTime? @map("start_datetime")
+  endDatetime   DateTime? @map("end_datetime")
+  isAllDay      Boolean   @default(false) @map("is_all_day")
+  createdBy     String    @map("created_by")
+  assignedTo    String?   @map("assigned_to")
+  // 'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED' (String, cf. enums.ts)
+  proposalStatus String   @default("NONE") @map("proposal_status")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  environment Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  creator     User        @relation("TaskCreatedBy", fields: [createdBy], references: [id])
+  assignee    User?       @relation("TaskAssignedTo", fields: [assignedTo], references: [id])
+
+  @@index([environmentId, startDatetime])
+  @@map("tasks")
+}
+
+model NotificationToken {
+  id         String @id @default(uuid())
+  userId     String @map("user_id")
+  token      String
+  // 'IOS' | 'ANDROID' | 'WEB' (String, cf. enums.ts)
+  deviceType String @map("device_type")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@map("notification_tokens")
+}
